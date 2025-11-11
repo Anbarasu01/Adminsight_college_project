@@ -1,0 +1,666 @@
+Awesome — here’s an **optimized, ready-to-run backend codebase** for ADMINSIGHT that includes:
+
+* Authentication (JWT) for admin users (collector/head/staff)
+* Public problem submission (open endpoint)
+* Automatic in-app notifications created for the District Collector(s) and the Department Head of the selected department
+* Robust head lookup: resolves head via Department.head (recommended) and falls back to any user with departmentName string
+* A seed script to create the department list + a collector + sample heads
+
+Drop these files into your `backend/` folder and follow the run steps at the end.
+
+---
+
+## 1) `backend/package.json`
+
+```json
+{
+  "name": "adminsight-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node seed/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.1",
+    "mongoose": "^7.5.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+```
+
+---
+
+## 2) `backend/.env` (example — create in your project)
+
+```
+MONGO_URI=mongodb://localhost:27017/adminsight
+JWT_SECRET=change_this_to_a_strong_secret
+PORT=5000
+```
+
+---
+
+## 3) `backend/server.js`
+
+```js
+require('dotenv').config();
+const express = require('express');
+const morgan = require('morgan');
+const cors = require('cors');
+const connectDB = require('./config/db');
+
+const authRoutes = require('./routes/authRoutes');
+const publicRoutes = require('./routes/publicRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const deptRoutes = require('./routes/deptRoutes');
+
+const app = express();
+connectDB();
+
+app.use(cors());
+app.use(express.json());
+app.use(morgan('dev'));
+
+// routes
+app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/departments', deptRoutes);
+
+// global error handler
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ message: err.message || 'Server error' });
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+```
+
+---
+
+## 4) `backend/config/db.js`
+
+```js
+const mongoose = require('mongoose');
+
+module.exports = async function connectDB() {
+  try {
+    const uri = process.env.MONGO_URI;
+    if (!uri) throw new Error('MONGO_URI not set in .env');
+    await mongoose.connect(uri);
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('DB connect error:', err);
+    process.exit(1);
+  }
+};
+```
+
+---
+
+## 5) Models
+
+### `backend/models/User.js`
+
+```js
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const UserSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  email: { type: String, lowercase: true, unique: true, sparse: true },
+  phone: { type: String },
+  password: { type: String },
+  role: { type: String, enum: ['collector','head','staff'], required: true },
+  department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' }, // recommended
+  departmentName: { type: String }, // fallback if you want to store as string
+  status: { type: String, enum: ['pending','approved','rejected'], default: 'approved' }
+}, { timestamps: true });
+
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  if (!this.password) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+UserSchema.methods.comparePassword = function(candidate) {
+  return bcrypt.compare(candidate, this.password);
+};
+
+module.exports = mongoose.model('User', UserSchema);
+```
+
+---
+
+### `backend/models/Department.js`
+
+```js
+const mongoose = require('mongoose');
+
+const DepartmentSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  head: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  description: { type: String }
+}, { timestamps: true });
+
+module.exports = mongoose.model('Department', DepartmentSchema);
+```
+
+---
+
+### `backend/models/PublicProblem.js`
+
+```js
+const mongoose = require('mongoose');
+
+const PublicProblemSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String },
+  phone: { type: String },
+  department: { type: String, required: true }, // store department name
+  problemTitle: { type: String, required: true },
+  description: { type: String, required: true },
+  location: { type: String },
+  status: { type: String, enum: ['Pending','In Progress','Resolved'], default: 'Pending' }
+}, { timestamps: true });
+
+module.exports = mongoose.model('PublicProblem', PublicProblemSchema);
+```
+
+---
+
+### `backend/models/Notification.js`
+
+```js
+const mongoose = require('mongoose');
+
+const NotificationSchema = new mongoose.Schema({
+  sender: { type: String, default: 'Public Portal' },
+  receiverUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // optional specific user
+  receiverRole: { type: String, enum: ['collector','head'], required: true },
+  department: { type: String },
+  message: { type: String, required: true },
+  data: { type: Object }, // payload e.g. { problemId }
+  status: { type: String, enum: ['unread','read'], default: 'unread' }
+}, { timestamps: true });
+
+module.exports = mongoose.model('Notification', NotificationSchema);
+```
+
+---
+
+## 6) Utils — notification creator (optimized & robust)
+
+### `backend/utils/sendNotification.js`
+
+```js
+const Notification = require('../models/Notification');
+const User = require('../models/User');
+const Department = require('../models/Department');
+
+/**
+ * Creates notifications for:
+ *  - all collectors (role: 'collector')
+ *  - department head (if found via Department.head OR User.departmentName)
+ *
+ * @param {Object} params
+ *   - department: string (department name)
+ *   - message: string
+ *   - data: object (optional payload)
+ */
+async function sendInAppNotifications({ department, message, data = {} }) {
+  try {
+    const created = [];
+
+    // notify all collectors
+    const collectors = await User.find({ role: 'collector', status: 'approved' }).select('_id');
+    const collectorNotifs = collectors.map(c => ({
+      sender: 'Public Portal',
+      receiverUser: c._id,
+      receiverRole: 'collector',
+      department,
+      message,
+      data
+    }));
+
+    // try to find head via Department.head
+    let headUser = null;
+    const deptDoc = await Department.findOne({ name: department }).populate('head');
+    if (deptDoc && deptDoc.head) headUser = deptDoc.head;
+
+    // fallback: find a user who has departmentName equal to department and role=head
+    if (!headUser) {
+      headUser = await User.findOne({ role: 'head', departmentName: department, status: 'approved' });
+    }
+
+    const headNotifs = headUser ? [{
+      sender: 'Public Portal',
+      receiverUser: headUser._id,
+      receiverRole: 'head',
+      department,
+      message,
+      data
+    }] : [];
+
+    const all = [...collectorNotifs, ...headNotifs];
+    if (all.length > 0) {
+      const docs = await Notification.insertMany(all);
+      created.push(...docs);
+    }
+
+    return { createdCount: created.length };
+  } catch (err) {
+    console.error('sendInAppNotifications error:', err);
+    return { error: err.message };
+  }
+}
+
+module.exports = sendInAppNotifications;
+```
+
+---
+
+## 7) Controllers
+
+### `backend/controllers/authController.js`
+
+```js
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+const signToken = id => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+exports.login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+
+    const ok = await user.comparePassword(password);
+    if (!ok) return res.status(400).json({ message: 'Invalid credentials' });
+
+    if (user.status !== 'approved') return res.status(403).json({ message: 'Account not approved' });
+
+    const token = signToken(user._id);
+    res.json({ token, user: { id: user._id, name: user.name, role: user.role, department: user.departmentName } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Optional admin-only registration endpoint (not public registration)
+exports.registerAdmin = async (req, res, next) => {
+  try {
+    const { name, email, password, role, departmentId, departmentName } = req.body;
+    if (!name || !email || !role) return res.status(400).json({ message: 'Missing required fields' });
+
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: 'Email already exists' });
+
+    const user = await User.create({
+      name, email, password, role, department: departmentId, departmentName,
+      status: 'approved'
+    });
+
+    res.status(201).json({ message: 'User created', userId: user._id });
+  } catch (err) { next(err); }
+};
+```
+
+---
+
+### `backend/controllers/publicController.js`
+
+```js
+const PublicProblem = require('../models/PublicProblem');
+const sendInAppNotifications = require('../utils/sendNotification');
+
+const departmentsList = [
+  "Revenue & Disaster Management",
+  "Health",
+  "Education",
+  "Agriculture",
+  "Police",
+  "Rural Development",
+  "Public Works (PWD)",
+  "Transport",
+  "Social Welfare",
+  "Electricity & Water"
+];
+
+exports.submitProblem = async (req, res, next) => {
+  try {
+    const { name, email, phone, department, problemTitle, description, location } = req.body;
+
+    if (!name || !department || !problemTitle || !description) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    if (!departmentsList.includes(department)) {
+      return res.status(400).json({ message: 'Invalid department' });
+    }
+
+    const problem = await PublicProblem.create({
+      name, email, phone, department, problemTitle, description, location
+    });
+
+    // create notifications for collector(s) and department head
+    const msg = `New public issue in ${department}: ${problemTitle}`;
+    await sendInAppNotifications({ department, message: msg, data: { problemId: problem._id } });
+
+    res.status(201).json({ success: true, message: 'Problem submitted', problemId: problem._id });
+  } catch (err) {
+    next(err);
+  }
+};
+```
+
+---
+
+### `backend/controllers/notificationController.js`
+
+```js
+const Notification = require('../models/Notification');
+
+/**
+ * req.user must be set by auth middleware
+ */
+exports.listNotifications = async (req, res, next) => {
+  try {
+    const user = req.user;
+    const q = {
+      $or: [
+        { receiverUser: user._id },
+        { receiverRole: user.role }
+      ]
+    };
+    const notifs = await Notification.find(q).sort({ createdAt: -1 }).limit(200);
+    res.json({ notifications: notifs });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.markRead = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const notif = await Notification.findById(id);
+    if (!notif) return res.status(404).json({ message: 'Notification not found' });
+
+    // authorization: must be recipient
+    if (notif.receiverUser && String(notif.receiverUser) !== String(req.user._id) && notif.receiverRole !== req.user.role) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    notif.status = 'read';
+    await notif.save();
+    res.json({ message: 'Marked read', notif });
+  } catch (err) { next(err); }
+};
+```
+
+---
+
+## 8) Routes
+
+### `backend/routes/authRoutes.js`
+
+```js
+const router = require('express').Router();
+const { login, registerAdmin } = require('../controllers/authController');
+const { auth } = require('../middleware/authMiddleware');
+const { permit } = require('../utils/roleAccess');
+
+// public login
+router.post('/login', login);
+
+// create admin user (protected: only collector allowed)
+router.post('/register-admin', auth, permit('collector'), registerAdmin);
+
+module.exports = router;
+```
+
+---
+
+### `backend/routes/publicRoutes.js`
+
+```js
+const router = require('express').Router();
+const { submitProblem } = require('../controllers/publicController');
+
+router.post('/submit-problem', submitProblem);
+module.exports = router;
+```
+
+---
+
+### `backend/routes/notificationRoutes.js`
+
+```js
+const router = require('express').Router();
+const { listNotifications, markRead } = require('../controllers/notificationController');
+const { auth } = require('../middleware/authMiddleware');
+
+router.use(auth);
+router.get('/', listNotifications);
+router.put('/:id/read', markRead);
+
+module.exports = router;
+```
+
+---
+
+### `backend/routes/deptRoutes.js`
+
+```js
+const router = require('express').Router();
+const Department = require('../models/Department');
+const { auth } = require('../middleware/authMiddleware');
+const { permit } = require('../utils/roleAccess');
+
+// public: list departments
+router.get('/', async (req, res, next) => {
+  try {
+    const depts = await Department.find().select('name description head').populate('head', 'name email');
+    res.json({ depts });
+  } catch (err) { next(err); }
+});
+
+// create dept (collector only)
+router.post('/', auth, permit('collector'), async (req, res, next) => {
+  try {
+    const { name, description, head } = req.body;
+    const d = await Department.create({ name, description, head });
+    res.status(201).json({ dept: d });
+  } catch (err) { next(err); }
+});
+
+module.exports = router;
+```
+
+---
+
+## 9) Middleware
+
+### `backend/middleware/authMiddleware.js`
+
+```js
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+exports.auth = async (req, res, next) => {
+  try {
+    const header = req.headers.authorization;
+    if (!header) return res.status(401).json({ message: 'No auth token' });
+    const token = header.split(' ')[1];
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(payload.id);
+    if (!user) return res.status(401).json({ message: 'Invalid token' });
+    req.user = user;
+    next();
+  } catch (err) {
+    next({ status: 401, message: 'Authentication required' });
+  }
+};
+```
+
+---
+
+### `backend/utils/roleAccess.js`
+
+```js
+exports.permit = (...allowed) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (!allowed.includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  next();
+};
+```
+
+---
+
+## 10) Seed script (creates departments + collector + heads)
+
+### `backend/seed/seed.js`
+
+```js
+// run with: npm run seed
+require('dotenv').config();
+const connectDB = require('../config/db');
+const Department = require('../models/Department');
+const User = require('../models/User');
+
+(async () => {
+  await connectDB();
+
+  // create a collector if not exists
+  let collector = await User.findOne({ role: 'collector' });
+  if (!collector) {
+    collector = await User.create({
+      name: 'District Collector',
+      email: 'collector@adminsight.local',
+      password: 'password123',
+      role: 'collector',
+      status: 'approved'
+    });
+    console.log('Collector created:', collector.email);
+  } else {
+    console.log('Collector already exists');
+  }
+
+  const departments = [
+    "Revenue & Disaster Management",
+    "Health",
+    "Education",
+    "Agriculture",
+    "Police",
+    "Rural Development",
+    "Public Works (PWD)",
+    "Transport",
+    "Social Welfare",
+    "Electricity & Water"
+  ];
+
+  for (const name of departments) {
+    let d = await Department.findOne({ name });
+    if (!d) {
+      // create a head user for each department
+      const headEmail = `${name.split(' ')[0].toLowerCase().replace(/[^\w]/g,'')}_head@adminsight.local`;
+      const head = await User.create({
+        name: `${name} Head`,
+        email: headEmail,
+        password: 'password123',
+        role: 'head',
+        departmentName: name,
+        status: 'approved'
+      });
+      d = await Department.create({ name, head: head._id });
+      // link user -> department
+      head.department = d._id;
+      await head.save();
+      console.log('Created department & head:', name);
+    } else {
+      console.log('Department exists:', name);
+    }
+  }
+
+  console.log('Seeding complete.');
+  process.exit(0);
+})();
+```
+
+---
+
+## 11) Quick usage / run steps
+
+1. Create `backend/` and paste files as given above.
+
+2. Add `.env` with `MONGO_URI`, `JWT_SECRET`, `PORT`.
+
+3. Install deps:
+
+   ```
+   cd backend
+   npm install
+   npm run seed    # creates collector and departments/heads
+   npm run dev     # or npm start
+   ```
+
+4. Public submit endpoint:
+
+   ```
+   POST http://localhost:5000/api/public/submit-problem
+   Body (JSON): {
+     "name": "John Doe",
+     "email": "john@example.com",
+     "phone": "9999999999",
+     "department": "Health",
+     "problemTitle": "Street water contamination",
+     "description": "Brown water for 3 days.",
+     "location": "Ward 12"
+   }
+   ```
+
+   This will save the problem and create in-app notifications for:
+
+   * all collectors (role = 'collector'), and
+   * department head for the selected department (if created by seed or assigned).
+
+5. Collectors / Heads list notifications:
+
+   * Login via `POST /api/auth/login` (use seeded head/collector emails & `password123`)
+   * Use returned token in `Authorization: Bearer <token>`
+   * `GET /api/notifications` → list notifications
+   * `PUT /api/notifications/:id/read` → mark read
+
+---
+
+## Notes & Next suggested steps
+
+* Add **rate-limiting** and **CAPTCHA** to `/api/public/submit-problem` to prevent spam.
+* Add **file upload** (images) via `multer` if you want citizens to attach evidence.
+* Optionally integrate **nodemailer** in `utils/emailService.js` to email the collector/head when problem arrives.
+* For real-time alerts, add **Socket.IO** and emit notifications to connected admin clients.
+* Harden validation with `express-validator` and sanitize inputs.
+* Move seeds/passwords to secure flow in production (use stronger secrets).
+
+---
+
+If you want, I can now:
+
+* generate `emailService.js` with a **Nodemailer** example and wire it into `publicController` (so email + in-app notifications happen), **or**
+* produce the **Collector/Head notifications UI** (React components) that lists notifications and marks them read.
+
+Which one would you like next?
