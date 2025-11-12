@@ -1,65 +1,84 @@
 const mongoose = require("mongoose");
-const Report = require('../models/reportModel');
-const PublicProblem = require('../models/publicproblems');
-const User = require('../models/User'); // to find reporter by name or id
-const sendInAppNotifications = require('../utils/Sendnotification');
+const Report = require("../models/reportModel");
+const PublicProblem = require("../models/publicproblems");
+const User = require("../models/User");
+const sendInAppNotifications = require("../utils/Sendnotification");
 
 // ✅ Create a new report
 exports.createReport = async (req, res) => {
   try {
     console.log("Incoming report data:", req.body);
     console.log("Uploaded file:", req.file);
-    let { problemId, reportedBy, department, status, reportMessage, photoEvidence } = req.body;
 
-    if (!problemId || !reportedBy || !department || !reportMessage) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    // ✅ Destructure data from body
+    let { problemId, department, status, reportMessage } = req.body;
+
+    // ✅ Use logged-in user automatically
+    const reporterId = req.user ? req.user._id : null;
+
+    // ✅ Validate required fields
+    if (!problemId || !department || !reportMessage) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields (problemId, department, reportMessage)",
+      });
     }
 
-    // Find problem
+    if (!reporterId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized — reporter not found (login required)",
+      });
+    }
+
+    // ✅ Find the problem
     const problem = await PublicProblem.findById(problemId);
-    if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
-
-    // Find user (can be ObjectId or name)
-    let user = null;
-    if (mongoose.Types.ObjectId.isValid(reportedBy)) {
-      user = await User.findById(reportedBy);
-    } else {
-      user = await User.findOne({ name: reportedBy });
+    if (!problem) {
+      return res.status(404).json({ success: false, message: "Problem not found" });
     }
 
-    if (!user) return res.status(404).json({ success: false, message: 'Reporter not found' });
+    // ✅ Prepare photo evidence (if file uploaded)
+    let photoEvidence = null;
+    if (req.file) {
+      photoEvidence = {
+        data: req.file.buffer, // Binary data
+        contentType: req.file.mimetype, // Image MIME type
+        fileName: req.file.originalname, // Original name
+      };
+    }
 
-    // Create report
+    // ✅ Create the report
     const report = await Report.create({
       problemId,
-      reportedBy: user._id,
+      reportedBy: reporterId,
       department,
-      status,
+      status: status || "Pending",
       reportMessage,
-      photoEvidence
+      photoEvidence,
     });
 
-    // Optional: update problem status
+    // ✅ Update problem status (optional)
     if (status) {
       problem.status = status;
       await problem.save();
     }
 
-    // Optional: send notification
+    // ✅ Send notification (optional)
     const message = `New report update on "${problem.problemTitle}" by ${department}`;
     await sendInAppNotifications({
       department,
       message,
-      data: { reportId: report._id, problemId: problem._id }
+      data: { reportId: report._id, problemId: problem._id },
     });
 
+    // ✅ Response
     res.status(201).json({
       success: true,
-      message: 'Report created successfully',
-      report
+      message: "Report created successfully",
+      report,
     });
   } catch (err) {
-    console.error('Error creating report:', err);
+    console.error("Error creating report:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -68,44 +87,57 @@ exports.createReport = async (req, res) => {
 exports.getAllReports = async (req, res) => {
   try {
     const reports = await Report.find()
-      .populate('problemId', 'problemTitle department status')
-      .populate('reportedBy', 'name email role')
+      .populate("problemId", "problemTitle department status")
+      .populate("reportedBy", "name email role")
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, count: reports.length, reports });
+    res.status(200).json({
+      success: true,
+      count: reports.length,
+      reports,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ Get reports by problem ID
+// ✅ Get all reports for a specific problem
 exports.getReportsByProblem = async (req, res) => {
   try {
     const { problemId } = req.params;
     const reports = await Report.find({ problemId })
-      .populate('reportedBy', 'name email')
+      .populate("reportedBy", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, reports });
+    res.status(200).json({
+      success: true,
+      reports,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ Update report
+// ✅ Update report (status or message)
 exports.updateReport = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, reportMessage } = req.body;
 
     const report = await Report.findById(id);
-    if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
+    if (!report)
+      return res.status(404).json({ success: false, message: "Report not found" });
 
     if (status) report.status = status;
     if (reportMessage) report.reportMessage = reportMessage;
+
     await report.save();
 
-    res.status(200).json({ success: true, message: 'Report updated successfully', report });
+    res.status(200).json({
+      success: true,
+      message: "Report updated successfully",
+      report,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

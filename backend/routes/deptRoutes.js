@@ -4,12 +4,15 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 const { getDepartments, createDepartment, updateDepartment, deleteDepartment, assignHead } = require('../controllers/deptController');
 
 // Protected routes
-router.get('/', protect, getDepartments);
-router.post('/', protect, authorize('admin'), createDepartment);
-router.put('/:id', protect, authorize('admin'), updateDepartment);
-router.delete('/:id', protect, authorize('admin'), deleteDepartment);
-// Example protected route to assign a head (admin only)
-router.put('/assign-head', protect, authorize('admin'), assignHead);
+router.get('/all-department', protect, getDepartments);
+router.post('/create', protect, authorize('collector','admin'), createDepartment);
+
+// Move this above `/:id`
+router.put('/assign-head', protect, authorize('collector','admin'), assignHead);
+
+router.put('/:id', protect, authorize('collector','admin'), updateDepartment);
+router.delete('/:id', protect, authorize('collector','admin'), deleteDepartment);
+
 
 
 // Catch-all

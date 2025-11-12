@@ -9,7 +9,7 @@ const {
 
 // Public routes
 router.post('/submit', submitProblem);         // Submit a new problem
-router.get('/', getProblems);                  // Get all problems
+router.get('/all_problems', getProblems);                  // Get all problems
 router.get('/:id', getProblem);               // Get a single problem
 router.put('/:id/status', updateProblemStatus); // Update problem status
 
