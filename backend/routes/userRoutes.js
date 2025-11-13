@@ -11,15 +11,16 @@ const {
   getUsersByRole
 } = require('../controllers/userController');
 
-// Protected admin routes
-router.get('/', protect, authorize('admin'), getUsers);
-router.get('/:id', protect, authorize('admin'), getUserById);
-router.put('/:id', protect, authorize('admin'), updateUser);
-router.delete('/:id', protect, authorize('admin'), deleteUser);
+// ✅ Specific routes first
+router.get('/getUser', protect, authorize('admin','collector'), getUsers);
+router.get('/department/:deptId', protect, authorize('admin','collector'), getUsersByDepartment);
+router.get('/role/:role', protect, authorize('admin','collector'), getUsersByRole);
 
-// Optional: routes by department or role
-router.get('/department/:deptId', protect, authorize('admin'), getUsersByDepartment);
-router.get('/role/:role', protect, authorize('admin'), getUsersByRole);
+// ✅ Generic routes last
+router.get('/:id', protect, authorize('admin','collector'), getUserById);
+router.put('/:id', protect, authorize('admin','collector'), updateUser);
+router.delete('/:id', protect, authorize('admin','collector'), deleteUser);
+
 
 // Catch-all route (must be last)
 router.all(/.*/, (req, res) => {

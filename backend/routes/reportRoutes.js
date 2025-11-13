@@ -10,9 +10,9 @@ const upload = multer({ storage });
 
 // ✅ Routes
 router.get('/', protect, getAllReports);
-router.post('/', protect, upload.single('photoEvidence'), createReport);
+router.post('/create', protect, upload.single('photoEvidence'), createReport);
 router.get('/problem/:problemId', protect, authorize('admin', 'collector'), getReportsByProblem);
-router.put('/:id', protect, authorize('admin'), updateReport);
+router.put('/:id', protect, authorize('admin','collector'), updateReport);
 
 router.all(/.*/, (req, res) => {
   res.status(404).json({ message: 'Route not found in reports router' });

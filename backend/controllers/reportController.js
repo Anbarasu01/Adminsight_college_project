@@ -118,20 +118,31 @@ exports.getReportsByProblem = async (req, res) => {
   }
 };
 
-// ✅ Update report (status or message)
 exports.updateReport = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, reportMessage } = req.body;
+    let { status, reportMessage } = req.body;
 
-    const report = await Report.findById(id);
-    if (!report)
+    // Normalize status capitalization
+    if (status) {
+      status = status
+        .split(' ')
+        .map(w => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
+    }
+
+    const report = await Report.findByIdAndUpdate(
+      id,
+      { 
+        ...(status && { status }),
+        ...(reportMessage && { reportMessage })
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!report) {
       return res.status(404).json({ success: false, message: "Report not found" });
-
-    if (status) report.status = status;
-    if (reportMessage) report.reportMessage = reportMessage;
-
-    await report.save();
+    }
 
     res.status(200).json({
       success: true,

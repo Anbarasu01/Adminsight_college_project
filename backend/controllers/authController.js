@@ -7,7 +7,7 @@ const Department = require("../models/department");
 // Helper: create JWT token and send response
 const createSendToken = (user, statusCode, res, message) => {
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: "1d"
+    expiresIn: "7d"
   });
 
   res.status(statusCode).json({
