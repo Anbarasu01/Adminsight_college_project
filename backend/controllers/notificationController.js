@@ -23,7 +23,7 @@ exports.createNotification = async (req, res) => {
 // ✅ Get all notifications (Admin)
 exports.getAllNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find().populate('user_id', 'name email');
+    const notifications = await Notification.find().populate('userId', 'name email');
     res.status(200).json(notifications);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching notifications', error });

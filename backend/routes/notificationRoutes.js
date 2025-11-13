@@ -10,7 +10,7 @@ const {
 
 // Routes for notifications
 router.post('/', createNotification); // Create a new notification
-router.get('/', getAllNotifications); // Get all notifications (Admin)
+router.get('/all', getAllNotifications); // Get all notifications (Admin)
 router.get('/user/:userId', getUserNotifications); // Get user-specific notifications
 router.put('/:id/read', markAsRead); // Mark notification as read
 router.delete('/:id', deleteNotification); // Delete a notification
