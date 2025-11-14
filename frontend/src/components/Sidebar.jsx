@@ -1,7 +1,17 @@
+import { useLocation } from "react-router-dom";
+
 const Sidebar = () => {
+  const location = useLocation();
+
+  // Pages where sidebar should NOT appear
+  const hideSidebar =
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname === "/";
+
+  if (hideSidebar) return null; // Do not render sidebar
+
   const links = [
-    { label: "Login", path: "/" },
-    { label: "Register", path: "/register" },
     { label: "Report Problem", path: "/report-problem" },
     { label: "Notifications", path: "/notifications" },
   ];
