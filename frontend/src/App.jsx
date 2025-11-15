@@ -1,11 +1,12 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import Homepage from "./pages/homepage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PublicLogin from "./pages/PublicLogin";
 import ReportProblem from "./pages/ReportProblem";
 import CollectorDashboard from "./pages/CollectorDashboard";
-import DepartmentDashboard from "./pages/DepartmentDashboard";
+import DepartmentDashboard from "./pages/DepartmentheadDashboard";
 import StaffDashboard from "./pages/StaffDashboard";
 import Notifications from "./pages/Notifications";
 import Navbar from "./components/Navbar";
@@ -15,7 +16,6 @@ import Sidebar from "./components/Sidebar";
 const DashboardLayout = ({ children }) => {
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
       <div className="flex-1">
         <Navbar />
         <div className="p-6">
@@ -75,7 +75,7 @@ function AppRoutes() {
       {/* Public routes without sidebar/navbar */}
       <Route path="/" element={
         <PublicLayout>
-          <PublicLogin />
+          <Homepage />
         </PublicLayout>
       } />
       <Route path="/login" element={
@@ -94,7 +94,7 @@ function AppRoutes() {
         </PublicLayout>
       } />
 
-      {/* Protected dashboard routes with sidebar/navbar */}
+      {/* Protected dashboard routes with navbar */}
       
       {/* Report Problem - Accessible by all authenticated users */}
       <Route path="/report-problem" element={
@@ -116,6 +116,21 @@ function AppRoutes() {
 
       {/* Role-specific dashboards */}
       <Route path="/collector-dashboard" element={
+        <RoleProtectedRoute allowedRoles={['collector']}>
+          <DashboardLayout>
+            <CollectorDashboard />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      } />
+       <Route path="/collector/reports" element={
+        <RoleProtectedRoute allowedRoles={['collector']}>
+          <DashboardLayout>
+            <CollectorDashboard />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      } />
+
+      <Route path="/collector/problems" element={
         <RoleProtectedRoute allowedRoles={['collector']}>
           <DashboardLayout>
             <CollectorDashboard />

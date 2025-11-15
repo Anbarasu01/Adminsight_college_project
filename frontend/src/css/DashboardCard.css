@@ -1,0 +1,94 @@
+.dashboard-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border: 1px solid;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  transform: translateY(0);
+}
+
+.dashboard-card:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-5px);
+}
+
+.dashboard-card.blue {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.dashboard-card.yellow {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.dashboard-card.purple {
+  border-color: rgba(147, 51, 234, 0.3);
+}
+
+.dashboard-card.green {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dashboard-card.red {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-text h3 {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.count {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.card-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.default-icon {
+  font-size: 1.5rem;
+}
+
+/* Gradient backgrounds for icons */
+.dashboard-card.blue .card-icon {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  color: white;
+}
+
+.dashboard-card.yellow .card-icon {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: white;
+}
+
+.dashboard-card.purple .card-icon {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  color: white;
+}
+
+.dashboard-card.green .card-icon {
+  background: linear-gradient(135deg, #10b981, #14b8a6);
+  color: white;
+}
+
+.dashboard-card.red .card-icon {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: white;
+}

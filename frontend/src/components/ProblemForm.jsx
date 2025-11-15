@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../utils/api";
+import '../css/ProblemForm.css';
 
 const ProblemForm = () => {
   const [form, setForm] = useState({ title: "", description: "", department: "" });
