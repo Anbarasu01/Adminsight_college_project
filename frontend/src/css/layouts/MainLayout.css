@@ -1,0 +1,68 @@
+.main-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f9fa;
+}
+
+.layout-content {
+  display: flex;
+  flex: 1;
+  margin-top: 64px; /* Navbar height */
+}
+
+.main-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+  margin-left: 250px; /* Sidebar width */
+  transition: margin-left 0.3s ease;
+}
+
+/* When sidebar is collapsed */
+.sidebar-collapsed .main-content {
+  margin-left: 64px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .layout-content {
+    flex-direction: column;
+  }
+  
+  .main-content {
+    margin-left: 0;
+    padding: 16px;
+  }
+  
+  .sidebar-collapsed .main-content {
+    margin-left: 0;
+  }
+}
+
+/* Content animations */
+.main-content {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark theme support */
+.dark .main-layout {
+  background-color: #1a1a1a;
+}
+
+.dark .main-content {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}

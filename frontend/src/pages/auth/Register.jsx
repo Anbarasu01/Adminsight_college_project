@@ -1,6 +1,6 @@
 import { useState, useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Link, useNavigate } from "react-router-dom"; 
+import { AuthContext } from "../../context/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
 
 const Register = () => {
   const { register } = useContext(AuthContext);
@@ -20,11 +20,11 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Special handling for phone number
     if (name === "phoneNumber") {
       // Only allow numbers and limit to 10 digits
-      const numbersOnly = value.replace(/\D/g, '').slice(0, 10);
+      const numbersOnly = value.replace(/\D/g, "").slice(0, 10);
       setForm({ ...form, [name]: numbersOnly });
     } else {
       setForm({ ...form, [name]: value });
@@ -72,46 +72,49 @@ const Register = () => {
   };
 
   // In the handleSubmit function of Register.jsx, update it like this:
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsLoading(true);
-  
-  if (validateForm()) {
-    try {
-      console.log("Form submitted:", form);
-      const user = await register(form);
-      
-      // Redirect based on user role after registration
-      switch (user.role) {
-        case 'collector':
-          navigate('/collector-dashboard');
-          break;
-        case 'departmentHead':
-          navigate('/department-dashboard');
-          break;
-        case 'staff':
-          navigate('/staff-dashboard');
-          break;
-        case 'public':
-        default:
-          navigate('/report-problem');
-          break;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    if (validateForm()) {
+      try {
+        console.log("Form submitted:", form);
+        const user = await register(form);
+
+        // Redirect based on user role after registration
+        switch (user.role) {
+          case "collector":
+            navigate("/collector-dashboard");
+            break;
+          case "departmentHead":
+            navigate("/department-dashboard");
+            break;
+          case "staff":
+            navigate("/staff-dashboard");
+            break;
+          case "public":
+          default:
+            navigate("/report-problem");
+            break;
+        }
+      } catch (error) {
+        console.error("Registration error:", error);
+        setErrors({ submit: "Registration failed. Please try again." });
       }
-    } catch (error) {
-      console.error("Registration error:", error);
-      setErrors({ submit: "Registration failed. Please try again." });
     }
-  }
-  setIsLoading(false);
-};
+    setIsLoading(false);
+  };
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Left Section */}
       <div className="hidden md:flex w-1/2 bg-blue-600 text-white flex-col justify-center items-center p-10 rounded-r-3xl shadow-xl">
-        <h1 className="text-4xl font-extrabold mb-4 tracking-wide">ADMINSIGHT</h1>
+        <h1 className="text-4xl font-extrabold mb-4 tracking-wide">
+          ADMINSIGHT
+        </h1>
         <p className="text-lg text-blue-100 max-w-sm text-center">
-          Simplify administration with smart insights and powerful role-based access.
+          Simplify administration with smart insights and powerful role-based
+          access.
         </p>
         <img
           src="https://cdn-icons-png.flaticon.com/512/2972/2972185.png"
@@ -147,11 +150,15 @@ const handleSubmit = async (e) => {
                 value={form.name}
                 onChange={handleChange}
                 className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
-                  errors.name ? "border-red-500 focus:ring-red-400" : "border-gray-300 focus:ring-blue-400"
+                  errors.name
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300 focus:ring-blue-400"
                 }`}
                 required
               />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+              {errors.name && (
+                <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+              )}
             </div>
 
             {/* Email */}
@@ -163,11 +170,15 @@ const handleSubmit = async (e) => {
                 value={form.email}
                 onChange={handleChange}
                 className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
-                  errors.email ? "border-red-500 focus:ring-red-400" : "border-gray-300 focus:ring-blue-400"
+                  errors.email
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300 focus:ring-blue-400"
                 }`}
                 required
               />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -179,11 +190,15 @@ const handleSubmit = async (e) => {
                 value={form.password}
                 onChange={handleChange}
                 className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
-                  errors.password ? "border-red-500 focus:ring-red-400" : "border-gray-300 focus:ring-blue-400"
+                  errors.password
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300 focus:ring-blue-400"
                 }`}
                 required
               />
-              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
             </div>
 
             {/* Phone Number */}
@@ -195,16 +210,22 @@ const handleSubmit = async (e) => {
                 value={form.phoneNumber}
                 onChange={handleChange}
                 className={`w-full border p-3 rounded-lg focus:outline-none focus:ring-2 ${
-                  errors.phoneNumber ? "border-red-500 focus:ring-red-400" : "border-gray-300 focus:ring-blue-400"
+                  errors.phoneNumber
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300 focus:ring-blue-400"
                 }`}
                 maxLength="10"
                 required
               />
               {errors.phoneNumber && (
-                <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.phoneNumber}
+                </p>
               )}
               {form.phoneNumber && form.phoneNumber.length === 10 && (
-                <p className="text-green-500 text-sm mt-1">✓ Valid phone number</p>
+                <p className="text-green-500 text-sm mt-1">
+                  ✓ Valid phone number
+                </p>
               )}
             </div>
 
@@ -237,19 +258,21 @@ const handleSubmit = async (e) => {
               type="submit"
               disabled={isLoading}
               className={`w-full py-3 rounded-lg font-semibold shadow-md transition duration-300 ${
-                isLoading 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                isLoading
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
             >
-              {isLoading ? 'Registering...' : 'Register'}
+              {isLoading ? "Registering..." : "Register"}
             </button>
           </div>
-          
 
           <p className="text-center text-gray-600 mt-5 text-sm">
             Already have an account?{" "}
-            <Link to="/login" className="text-blue-600 font-medium hover:underline cursor-pointer">
+            <Link
+              to="/login"
+              className="text-blue-600 font-medium hover:underline cursor-pointer"
+            >
               Login here
             </Link>
           </p>

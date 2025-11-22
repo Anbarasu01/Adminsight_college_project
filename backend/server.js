@@ -13,6 +13,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const deptRoutes = require('./routes/deptRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const taskRoutes = require('./routes/taskRoutes');
+const collectorRoutes = require('./routes/collectorRoutes');
 
 const app = express();
 
@@ -39,6 +40,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/departments', deptRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/tasks', taskRoutes);
+
+// Collector routes (require auth)
+app.use('/api/collector', collectorRoutes);
 
 // Home route
 app.get('/', (req, res) => {

@@ -6,8 +6,8 @@ const User = require('../models/User');
 // ✅ Create Department
 exports.createDepartment = async (req, res) => {
   try {
-    // Allow only admin or collector
-    if (req.user.role !== 'admin' && req.user.role !== 'collector') {
+    // collector
+    if ( req.user.role !== 'collector') {
       return res.status(403).json({ message: 'Forbidden: Only admin or collector can create departments' });
     }
 
@@ -45,7 +45,7 @@ exports.createDepartment = async (req, res) => {
 // ✅ Get all departments
 exports.getDepartments = async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'collector') {
+    if ( req.user.role !== 'collector') {
       return res.status(403).json({ message: 'Forbidden: Only admin or collector can view departments' });
     }
 
@@ -56,10 +56,10 @@ exports.getDepartments = async (req, res) => {
   }
 };
 
-// ✅ Update Department (admin or collector)
+// ✅ Update Department (collector)
 exports.updateDepartment = async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'collector') {
+    if (req.user.role !== 'collector') {
       return res.status(403).json({ message: 'Forbidden: Only admin or collector can update departments' });
     }
 
@@ -76,10 +76,10 @@ exports.updateDepartment = async (req, res) => {
   }
 };
 
-// ✅ Delete Department (admin or collector)
+// ✅ Delete Department (collector)
 exports.deleteDepartment = async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'collector') {
+    if (req.user.role !== 'collector') {
       return res.status(403).json({ message: 'Forbidden: Only admin or collector can delete departments' });
     }
 
@@ -99,7 +99,7 @@ exports.deleteDepartment = async (req, res) => {
 // ✅ Assign Head to Department (admin or collector)
 exports.assignHead = async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'collector') {
+    if (req.user.role !== 'collector') {
       return res.status(403).json({ message: 'Forbidden: Only admin or collector can assign head' });
     }
 

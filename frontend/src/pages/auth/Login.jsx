@@ -1,11 +1,11 @@
 import { useState, useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 
 const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
-  
+
   const [form, setForm] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -20,21 +20,21 @@ const Login = () => {
 
     try {
       const user = await login(form.email, form.password);
-      
+
       // Redirect based on user role
       switch (user.role) {
-        case 'collector':
-          navigate('/collector-dashboard');
+        case "collector":
+          navigate("/collector-dashboard");
           break;
-        case 'departmentHead':
-          navigate('/department-dashboard');
+        case "departmentHead":
+          navigate("/department-dashboard");
           break;
-        case 'staff':
-          navigate('/staff-dashboard');
+        case "staff":
+          navigate("/staff-dashboard");
           break;
-        case 'public':
+        case "public":
         default:
-          navigate('/report-problem');
+          navigate("/report-problem");
           break;
       }
     } catch (err) {
@@ -49,9 +49,12 @@ const Login = () => {
     <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Left Section */}
       <div className="hidden md:flex w-1/2 bg-blue-600 text-white flex-col justify-center items-center p-10 rounded-r-3xl shadow-xl">
-        <h1 className="text-4xl font-extrabold mb-4 tracking-wide">ADMINSIGHT</h1>
+        <h1 className="text-4xl font-extrabold mb-4 tracking-wide">
+          ADMINSIGHT
+        </h1>
         <p className="text-lg text-blue-100 max-w-sm text-center">
-          Access your personalized dashboard based on your role and responsibilities.
+          Access your personalized dashboard based on your role and
+          responsibilities.
         </p>
         <img
           src="https://cdn-icons-png.flaticon.com/512/2990/2990686.png"
@@ -106,12 +109,12 @@ const Login = () => {
               type="submit"
               disabled={isLoading}
               className={`w-full py-3 rounded-lg font-semibold shadow-md transition duration-300 ${
-                isLoading 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                isLoading
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
             >
-              {isLoading ? 'Signing In...' : 'Sign In'}
+              {isLoading ? "Signing In..." : "Sign In"}
             </button>
           </div>
 

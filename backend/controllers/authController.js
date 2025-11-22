@@ -36,7 +36,7 @@ const registerUser = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    const validRoles = ['public', 'collector', 'admin', 'department_head', 'staff'];
+    const validRoles = ['public', 'collector', 'department_head', 'staff'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ success: false, message: `Invalid role` });
     }
