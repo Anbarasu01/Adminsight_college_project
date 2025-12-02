@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../../utils/api";
 import DashboardCard from "../../components/DashboardCard";
 import DepartmentReports from "../../components/DepartmentReports";
@@ -7,6 +7,9 @@ import ReportList from "../../components/ReportList";
 import StaffTasks from "../../components/StaffTasks";
 import NotificationCard from "../../components/NotificationCard";
 import ProblemForm from "../../components/ProblemForm";
+
+// Import CollectorUsers component
+import CollectorUsers from "./CollectorUsers"; // Add this import
 
 const CollectorDashboard = () => {
   const [problems, setProblems] = useState([]);
@@ -16,37 +19,100 @@ const CollectorDashboard = () => {
     inProgress: 0,
     resolved: 0,
   });
+  
+  // NEW STATE FOR COLLECTOR METRICS
+  const [collectorMetrics, setCollectorMetrics] = useState({
+    collectionRate: 0,
+    successPercentage: 0,
+    dailyTarget: 0,
+    weeklyTarget: 0,
+    dailyAchieved: 0,
+    weeklyAchieved: 0,
+    pendingTasks: 0,
+    completedTasks: 0,
+    totalCustomers: 0,
+    overdueCustomers: 0,
+    assignedArea: "District A",
+    urgentAlerts: 0
+  });
+  
+  const [assignedRoute, setAssignedRoute] = useState([]); // For route map coordinates
+  const [recentActivities, setRecentActivities] = useState([]); // Recent collector activities
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [showCustomersPreview, setShowCustomersPreview] = useState(false); // For customer preview modal
   const location = useLocation();
+  const navigate = useNavigate();
 
+  // Determine active section from URL path - UPDATED
+  const getActiveSection = () => {
+    const path = location.pathname;
+    if (path.includes('/collector/department')) return 'departments';
+    if (path.includes('/collector/tasks')) return 'tasks';
+    if (path.includes('/collector/reports')) return 'reports';
+    if (path.includes('/collector/notifications')) return 'notifications';
+    if (path.includes('/collector/profile')) return 'profile';
+    if (path.includes('/collector/users')) return 'users'; // NEW
+    return 'dashboard';
+  };
+
+  const [activeSection, setActiveSection] = useState(getActiveSection());
+
+  // Update active section when URL changes
+  useEffect(() => {
+    setActiveSection(getActiveSection());
+  }, [location]);
+
+  // UPDATED MENU ITEMS - Added Users menu
   const menuItems = [
     {
-      path: "/collector-dashboard",
+      path: "/collector/dashboard",
       icon: "📊",
       label: "Dashboard",
       section: "dashboard",
     },
     {
-      path: "/departments",
+      path: "/collector/users", // NEW MENU ITEM
+      icon: "👥",
+      label: "Customers",
+      section: "users",
+    },
+    {
+      path: "/collector/tasks",
+      icon: "✅",
+      label: "Tasks",
+      section: "tasks",
+    },
+    {
+      path: "/collector/reports",
+      icon: "📋",
+      label: "Reports",
+      section: "reports",
+    },
+    {
+      path: "/collector/notifications",
+      icon: "🔔",
+      label: "Notifications",
+      section: "notifications",
+    },
+    {
+      path: "/collector/department",
       icon: "🏢",
       label: "Departments",
       section: "departments",
     },
-    { path: "/problems", icon: "⚠️", label: "Problems", section: "problems" },
-    { path: "/reports", icon: "📋", label: "Reports", section: "reports" },
-    { path: "/tasks", icon: "✅", label: "Tasks", section: "tasks" },
     {
-      path: "/notifications",
-      icon: "🔔",
-      label: "Notifications",
-      section: "notifications",
+      path: "/collector/profile",
+      icon: "👤",
+      label: "Profile",
+      section: "profile",
     },
   ];
 
   useEffect(() => {
     fetchDashboardData();
+    fetchCollectorMetrics(); // NEW: Fetch collector-specific data
+    fetchAssignedRoute(); // NEW: Fetch route/area data
   }, []);
 
   const fetchDashboardData = async () => {
@@ -84,6 +150,73 @@ const CollectorDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // NEW FUNCTION: Fetch collector-specific metrics
+  const fetchCollectorMetrics = async () => {
+    try {
+      const response = await api.get("/collector/metrics");
+      setCollectorMetrics(response.data || {
+        collectionRate: 0,
+        successPercentage: 0,
+        dailyTarget: 0,
+        weeklyTarget: 0,
+        dailyAchieved: 0,
+        weeklyAchieved: 0,
+        pendingTasks: 0,
+        completedTasks: 0,
+        totalCustomers: 0,
+        overdueCustomers: 0,
+        assignedArea: "Not Assigned",
+        urgentAlerts: 0
+      });
+      
+      // Fetch recent activities
+      const activitiesRes = await api.get("/collector/activities");
+      setRecentActivities(activitiesRes.data?.slice(0, 5) || []);
+    } catch (error) {
+      console.error("Error fetching collector metrics:", error);
+    }
+  };
+
+  // NEW FUNCTION: Fetch assigned route/area map data
+  const fetchAssignedRoute = async () => {
+    try {
+      const response = await api.get("/collector/route");
+      setAssignedRoute(response.data?.coordinates || []);
+    } catch (error) {
+      console.error("Error fetching route data:", error);
+    }
+  };
+
+  // NEW FUNCTION: Start a new collection task
+  const startNewTask = async () => {
+    try {
+      const response = await api.post("/collector/tasks/start");
+      alert("New task started! Visit assigned area for collection.");
+      fetchCollectorMetrics(); // Refresh metrics
+      navigate("/collector/tasks"); // Navigate to tasks page
+    } catch (error) {
+      console.error("Error starting task:", error);
+      alert("Failed to start task. Please try again.");
+    }
+  };
+
+  // NEW FUNCTION: Log a field visit
+  const logFieldVisit = () => {
+    navigate("/collector/tasks?action=log-visit");
+  };
+
+  // NEW FUNCTION: Submit daily collection report
+  const submitDailyReport = () => {
+    navigate("/collector/reports?action=submit-daily");
+  };
+
+  // NEW FUNCTION: View assigned area map
+  const viewAssignedArea = () => {
+    // This would typically open a modal with map
+    console.log("Viewing assigned area:", collectorMetrics.assignedArea);
+    alert(`Viewing assigned area: ${collectorMetrics.assignedArea}`);
   };
 
   const assignDepartment = async (problemId, department) => {
@@ -136,11 +269,13 @@ const CollectorDashboard = () => {
     }
   };
 
-  // Render different sections based on activeSection
+  // Render different sections based on activeSection - UPDATED
   const renderActiveSection = () => {
     switch (activeSection) {
       case "dashboard":
         return renderDashboard();
+      case "users": // NEW SECTION
+        return <CollectorUsers />;
       case "departments":
         return <DepartmentReports />;
       case "reports":
@@ -175,13 +310,37 @@ const CollectorDashboard = () => {
             </div>
           </div>
         );
-      case "problems":
+      case "profile":
         return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">
-              Report New Problem
-            </h2>
-            <ProblemForm onSubmit={fetchDashboardData} />
+          <div className="p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Profile</h2>
+            <div className="bg-white rounded-2xl shadow-lg p-8">
+              <div className="max-w-md">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Collector Information</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-500">Name</label>
+                    <p className="text-gray-800">District Collector</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-500">Email</label>
+                    <p className="text-gray-800">collector@admin.com</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-500">Role</label>
+                    <p className="text-gray-800">District Collector</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-500">Assigned Area</label>
+                    <p className="text-gray-800">{collectorMetrics.assignedArea}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-500">Collection Rate</label>
+                    <p className="text-gray-800">{collectorMetrics.collectionRate}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         );
       default:
@@ -191,39 +350,201 @@ const CollectorDashboard = () => {
 
   const renderDashboard = () => (
     <div className="p-8">
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <DashboardCard
-          title="Total Problems"
-          value={stats.totalProblems}
-          icon="📋"
-          color="blue"
-          gradient="from-blue-500 to-cyan-500"
-        />
-        <DashboardCard
-          title="Pending"
-          value={stats.pending}
-          icon="⏳"
-          color="yellow"
-          gradient="from-yellow-500 to-orange-500"
-        />
-        <DashboardCard
-          title="In Progress"
-          value={stats.inProgress}
-          icon="🔄"
-          color="purple"
-          gradient="from-purple-500 to-pink-500"
-        />
-        <DashboardCard
-          title="Resolved"
-          value={stats.resolved}
-          icon="✅"
-          color="green"
-          gradient="from-green-500 to-teal-500"
-        />
+      {/* Collection Performance Metrics - NEW SECTION */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Collection Performance</h2>
+            <p className="text-gray-600">Your personal collection metrics and targets</p>
+          </div>
+          <button 
+            onClick={viewAssignedArea}
+            className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-xl hover:shadow-lg transition-shadow"
+          >
+            <span>📍</span>
+            <span>View Assigned Area</span>
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+          <DashboardCard
+            title="Collection Rate"
+            value={`${collectorMetrics.collectionRate}%`}
+            icon="📈"
+            color="green"
+            gradient="from-green-500 to-emerald-500"
+            subtitle="Success rate"
+          />
+          <DashboardCard
+            title="Daily Target"
+            value={`${collectorMetrics.dailyAchieved}/${collectorMetrics.dailyTarget}`}
+            icon="🎯"
+            color="blue"
+            gradient="from-blue-500 to-cyan-500"
+            subtitle="Collections today"
+          />
+          <DashboardCard
+            title="Pending Tasks"
+            value={collectorMetrics.pendingTasks}
+            icon="⏳"
+            color="yellow"
+            gradient="from-yellow-500 to-orange-500"
+            subtitle="To be completed"
+          />
+          <DashboardCard
+            title="Total Customers"
+            value={collectorMetrics.totalCustomers}
+            icon="👥"
+            color="purple"
+            gradient="from-purple-500 to-pink-500"
+            subtitle="Assigned customers"
+          />
+          <DashboardCard
+            title="Urgent Alerts"
+            value={collectorMetrics.urgentAlerts}
+            icon="🚨"
+            color="red"
+            gradient="from-red-500 to-pink-500"
+            subtitle="Require attention"
+          />
+        </div>
+        
+        {/* Progress Bars for Targets */}
+        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-200 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Target Progress</h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-gray-700">Daily Target</span>
+                <span className="font-semibold">{Math.round((collectorMetrics.dailyAchieved / collectorMetrics.dailyTarget) * 100) || 0}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((collectorMetrics.dailyAchieved / collectorMetrics.dailyTarget) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-gray-700">Weekly Target</span>
+                <span className="font-semibold">{Math.round((collectorMetrics.weeklyAchieved / collectorMetrics.weeklyTarget) * 100) || 0}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((collectorMetrics.weeklyAchieved / collectorMetrics.weeklyTarget) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Problems Section */}
+      {/* Quick Action Buttons - UPDATED */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <button
+          onClick={startNewTask}
+          className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-left"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-xl">🚀</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Start Task</h3>
+              <p className="text-blue-100 text-sm">Begin collection round</p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={logFieldVisit}
+          className="bg-gradient-to-br from-green-500 to-emerald-500 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-left"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-xl">📝</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Log Visit</h3>
+              <p className="text-green-100 text-sm">Record field visit</p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={submitDailyReport}
+          className="bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-left"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-xl">📄</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Submit Report</h3>
+              <p className="text-purple-100 text-sm">Daily collection report</p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate("/collector/users")}
+          className="bg-gradient-to-br from-orange-500 to-red-500 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-left"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-xl">👥</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">View Customers</h3>
+              <p className="text-orange-100 text-sm">Assigned customers</p>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* Recent Activities - NEW SECTION */}
+      <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-lg border border-gray-200 mb-8">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-gray-800">Recent Activities</h3>
+            <button 
+              onClick={fetchCollectorMetrics}
+              className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+            >
+              <span>🔄</span>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          {recentActivities.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No recent activities found
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentActivities.map((activity, index) => (
+                <div key={index} className="flex items-start space-x-4 p-3 hover:bg-gray-50 rounded-lg">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    {activity.type === 'collection' ? '💰' : 
+                     activity.type === 'visit' ? '📍' : 
+                     activity.type === 'report' ? '📄' : '📋'}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-gray-800">{activity.description}</p>
+                    <p className="text-sm text-gray-500">{activity.time}</p>
+                  </div>
+                  <span className="text-sm text-gray-500">{activity.amount || ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Problems Section (Existing) */}
       <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-blue-100 overflow-hidden mb-8">
         <div className="px-8 py-6 bg-gradient-to-r from-blue-600 to-purple-600">
           <div className="flex justify-between items-center">
@@ -411,55 +732,33 @@ const CollectorDashboard = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <button
-          onClick={fetchDashboardData}
-          className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <span className="text-xl">🔄</span>
+      {/* Customer Preview Modal */}
+      {showCustomersPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white flex justify-between items-center">
+              <h3 className="text-xl font-bold">Assigned Customers Preview</h3>
+              <button 
+                onClick={() => setShowCustomersPreview(false)}
+                className="text-white hover:text-gray-200 text-2xl"
+              >
+                ×
+              </button>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg">Refresh Data</h3>
-              <p className="text-blue-100 text-sm">
-                Update dashboard information
-              </p>
+            <div className="p-6 overflow-auto">
+              <CollectorUsers previewMode={true} limit={10} />
             </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => setActiveSection("notifications")}
-          className="bg-gradient-to-br from-green-500 to-emerald-500 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <span className="text-xl">🔔</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg">Notifications</h3>
-              <p className="text-green-100 text-sm">Check latest updates</p>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button 
+                onClick={() => navigate("/collector/users")}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-xl hover:shadow-lg transition-shadow"
+              >
+                View All Customers
+              </button>
             </div>
           </div>
-        </button>
-
-        <button
-          onClick={() => setActiveSection("reports")}
-          className="bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <span className="text-xl">📊</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg">Reports</h3>
-              <p className="text-purple-100 text-sm">View analytics</p>
-            </div>
-          </div>
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 
@@ -468,7 +767,7 @@ const CollectorDashboard = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Dashboard...</p>
+          <p className="mt-4 text-gray-600">Loading Collector Dashboard...</p>
         </div>
       </div>
     );
@@ -508,12 +807,12 @@ const CollectorDashboard = () => {
           </button>
         </div>
 
-        {/* Navigation Menu */}
+        {/* Navigation Menu - Updated to use Links */}
         <nav className="p-4 space-y-2">
           {menuItems.map((item) => (
-            <button
+            <Link
               key={item.section}
-              onClick={() => setActiveSection(item.section)}
+              to={item.path}
               className={`w-full flex items-center space-x-3 p-3 rounded-xl transition-all duration-200 group ${
                 activeSection === item.section
                   ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
@@ -528,29 +827,31 @@ const CollectorDashboard = () => {
                   {item.label}
                 </span>
               )}
-            </button>
+            </Link>
           ))}
         </nav>
 
         {/* User Profile */}
         <div className="absolute bottom-4 left-4 right-4">
-          <div
-            className={`flex items-center space-x-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100 ${
-              !sidebarOpen && "justify-center"
-            }`}
-          >
-            <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold">DC</span>
-            </div>
-            {sidebarOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-800 text-sm truncate">
-                  District Collector
-                </p>
-                <p className="text-xs text-gray-500 truncate">Administrator</p>
+          <Link to="/collector/profile">
+            <div
+              className={`flex items-center space-x-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100 hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 transition-colors ${
+                !sidebarOpen && "justify-center"
+              }`}
+            >
+              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">DC</span>
               </div>
-            )}
-          </div>
+              {sidebarOpen && (
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-800 text-sm truncate">
+                    District Collector
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">Area: {collectorMetrics.assignedArea}</p>
+                </div>
+              )}
+            </div>
+          </Link>
         </div>
       </div>
 
@@ -567,28 +868,29 @@ const CollectorDashboard = () => {
                 </h1>
                 <p className="text-gray-600 mt-1">
                   {activeSection === "dashboard" &&
-                    "Manage and assign problems to departments"}
+                    "Manage collection tasks and view performance metrics"}
+                  {activeSection === "users" && "Manage assigned customers and collection records"}
                   {activeSection === "departments" &&
                     "View and manage department reports"}
                   {activeSection === "reports" &&
-                    "View assigned reports and update status"}
-                  {activeSection === "tasks" && "Manage your assigned tasks"}
+                    "View collection reports and analytics"}
+                  {activeSection === "tasks" && "Manage your assigned collection tasks"}
                   {activeSection === "notifications" &&
                     "View system notifications"}
-                  {activeSection === "problems" && "Report new problems"}
+                  {activeSection === "profile" && "Manage your collector profile"}
                 </p>
               </div>
               <div className="flex items-center space-x-6">
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">Welcome back,</p>
-                    <p className="font-semibold text-gray-800">
-                      District Collector
-                    </p>
+                    <p className="text-sm text-gray-500">Collection Rate</p>
+                    <p className="font-semibold text-gray-800">{collectorMetrics.collectionRate}%</p>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                    DC
-                  </div>
+                  <Link to="/collector/profile">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg cursor-pointer hover:shadow-xl transition-shadow">
+                      DC
+                    </div>
+                  </Link>
                 </div>
               </div>
             </div>

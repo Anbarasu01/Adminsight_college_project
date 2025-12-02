@@ -6,38 +6,42 @@ import { useAuth } from './context/AuthContext';
 import AuthLayout from './layouts/AuthLayout';
 import MainLayout from './layouts/MainLayout';
 
+// Public Pages
+import ModernHomePage from '../src/pages/homepage.jsx'; // Add this import
+
 // Auth Pages
-import Login from '../pages/auth/Login';
-import Register from '../pages/auth/Register';
-import PublicLogin from '../pages/auth/PublicLogin';
+import Login from './pages/auth/Login.jsx';
+import Register from './pages/auth/Register.jsx';
+import PublicLogin from './pages/auth/PublicLogin.jsx';
 
 // Collector Pages
-import CollectorDashboard from './pages/collector/CollectorDashboard';
-import CollectorProfile from './pages/collector/CollectorProfile';
-import CollectorTasks from './pages/collector/CollectorTasks';
-import CollectorNotifications from './pages/collector/CollectorNotifications';
-import CollectorReports from './pages/collector/CollectorReports';
-import CollectorUsers from './pages/collector/CollectorUsers';
+import CollectorDashboard from './pages/collector/CollectorDashboard.jsx';
+import CollectorDepartments from './pages/collector/CollectorDepartments.jsx';
+import CollectorProfile from './pages/collector/CollectorProfile.jsx';
+import CollectorTasks from './pages/collector/CollectorTasks.jsx';
+import CollectorNotifications from './pages/collector/CollectorNotifications.jsx';
+import CollectorReports from './pages/collector/CollectorReports.jsx';
+import CollectorUsers from './pages/collector/CollectorUsers.jsx';
 
 // Department Head Pages
-import DepartmentHeadDashboard from '../pages/department-head/DepartmentHeadDashboard'; // Fixed capitalization
-import DepartmentHeadProfile from './pages/department-head/DepartmentHeadProfile';
-import DepartmentHeadNotifications from './pages/department-head/DepartmentHeadNotifications';
-import DepartmentReports from './pages/department-head/DepartmentReports';
-import DepartmentStaff from './pages/department-head/DepartmentStaff';
+import DepartmentHeadDashboard from './pages/department-head/DepartmentHeadDashboard.jsx';
+import DepartmentHeadProfile from './pages/department-head/DepartmentHeadProfile.jsx';
+import DepartmentHeadNotifications from './pages/department-head/DepartmentHeadNotifications.jsx';
+import DepartmentReports from './pages/department-head/DepartmentReports.jsx';
+import DepartmentStaff from './pages/department-head/DepartmentStaff.jsx';
 
 // Staff Pages
-import StaffDashboard from './pages/staff/StaffDashboard';
-import StaffProfile from './pages/staff/StaffProfile';
-import StaffNotifications from './pages/staff/StaffNotifications';
-import StaffTasks from './pages/staff/StaffTasks';
-import ReportProblem from './pages/staff/ReportProblem';
+import StaffDashboard from './pages/staff/StaffDashboard.jsx';
+import StaffProfile from './pages/staff/StaffProfile.jsx';
+import StaffNotifications from './pages/staff/StaffNotifications.jsx';
+import StaffTasks from './pages/staff/StaffTasks.jsx';
+import ReportProblem from './pages/staff/ReportProblem.jsx';
 
 // Public Pages
-import PublicDashboard from './pages/public/PublicDashboard';
-import PublicProfile from './pages/public/PublicProfile';
-import MyReports from './pages/public/MyReports';
-import PublicReportProblem from './pages/public/PublicReportProblem'; // Fixed import name
+import PublicDashboard from './pages/public/PublicDashboard.jsx';
+import PublicProfile from './pages/public/PublicProfile.jsx';
+import MyReports from './pages/public/MyReports.jsx';
+import PublicReportProblem from './pages/public/PublicReportProblem.jsx';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -110,6 +114,9 @@ const AppRouter = () => {
   return (
     <ErrorBoundary>
       <Routes>
+        {/* Public Home Page - No authentication required */}
+        <Route path="/" element={<ModernHomePage />} />
+
         {/* Public Auth Routes */}
         <Route 
           path="/auth" 
@@ -143,6 +150,14 @@ const AppRouter = () => {
             element={
               <ProtectedRoute allowedRoles={['collector']}>
                 <CollectorDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="collector/department" 
+            element={
+              <ProtectedRoute allowedRoles={['collector']}>
+                <CollectorDepartments />
               </ProtectedRoute>
             } 
           />
@@ -339,8 +354,8 @@ const AppRouter = () => {
           </div>
         } />
 
-        {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/auth/login" replace />} />
+        {/* Catch all route - Redirect to home page instead of login */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ErrorBoundary>
   );

@@ -1,9 +1,9 @@
 import { useState, useContext } from "react";
-import { AuthContext } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 
 const Register = () => {
-  const { register } = useContext(AuthContext);
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -71,7 +71,7 @@ const Register = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // In the handleSubmit function of Register.jsx, update it like this:
+  // CORRECTED: Updated navigation paths to match your router
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -81,20 +81,21 @@ const Register = () => {
         console.log("Form submitted:", form);
         const user = await register(form);
 
-        // Redirect based on user role after registration
+        // CORRECTED: Redirect based on user role after registration
+        // Using the same paths as defined in your router
         switch (user.role) {
           case "collector":
-            navigate("/collector-dashboard");
+            navigate("/collector/dashboard");
             break;
           case "departmentHead":
-            navigate("/department-dashboard");
+            navigate("/department-head/dashboard");
             break;
           case "staff":
-            navigate("/staff-dashboard");
+            navigate("/staff/dashboard");
             break;
           case "public":
           default:
-            navigate("/report-problem");
+            navigate("/public/dashboard");
             break;
         }
       } catch (error) {
@@ -270,7 +271,7 @@ const Register = () => {
           <p className="text-center text-gray-600 mt-5 text-sm">
             Already have an account?{" "}
             <Link
-              to="/login"
+              to="/auth/login"
               className="text-blue-600 font-medium hover:underline cursor-pointer"
             >
               Login here

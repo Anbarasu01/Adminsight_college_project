@@ -9,8 +9,8 @@ const ModernHomePage = () => {
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-32 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-32 w-80 h-80 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000"></div>
-        <div className="absolute top-40 left-1/2 w-80 h-80 bg-green-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-4000"></div>
+        <div className="absolute -bottom-40 -left-32 w-80 h-80 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{ animationDelay: '2000ms' }}></div>
+        <div className="absolute top-40 left-1/2 w-80 h-80 bg-green-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{ animationDelay: '4000ms' }}></div>
       </div>
 
       {/* Main Content */}
@@ -29,9 +29,9 @@ const ModernHomePage = () => {
               {user ? (
                 <Link
                   to={
-                    user.role === 'collector' ? '/collector-dashboard' :
-                    user.role === 'departmentHead' ? '/department-dashboard' :
-                    user.role === 'staff' ? '/staff-dashboard' : '/report-problem'
+                    user.role === 'collector' ? '/collector/dashboard' :
+                    user.role === 'departmentHead' ? '/department-head/dashboard' :
+                    user.role === 'staff' ? '/staff/dashboard' : '/public/dashboard'
                   }
                   className="bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-xl hover:bg-white/30 transition-all duration-300 font-semibold"
                 >
@@ -40,13 +40,13 @@ const ModernHomePage = () => {
               ) : (
                 <>
                   <Link
-                    to="/login"
+                    to="/auth/login"
                     className="text-white/80 hover:text-white transition-colors duration-300 font-medium"
                   >
                     Sign In
                   </Link>
                   <Link
-                    to="/register"
+                    to="/auth/register"
                     className="bg-white text-blue-600 px-6 py-2 rounded-xl hover:bg-gray-100 transition-all duration-300 font-semibold shadow-lg"
                   >
                     Get Started
@@ -82,7 +82,7 @@ const ModernHomePage = () => {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 mb-16">
               <Link
-                to="/report-problem"
+                to="/public/report-problem"
                 className="group bg-white text-blue-600 px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center space-x-3"
               >
                 <span>Report a Problem</span>
@@ -90,7 +90,7 @@ const ModernHomePage = () => {
               </Link>
               
               <Link
-                to="/public-login"
+                to="/auth/login"
                 className="group border-2 border-white text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all duration-300 transform hover:-translate-y-1 flex items-center space-x-3"
               >
                 <span>View Demo</span>
@@ -229,13 +229,13 @@ const ModernHomePage = () => {
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
             <Link
-              to="/report-problem"
+              to="/public/report-problem"
               className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
             >
               Report a Problem Now
             </Link>
             <Link
-              to="/login"
+              to="/auth/login"
               className="border-2 border-white text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all duration-300"
             >
               Admin Login
@@ -267,16 +267,6 @@ const ModernHomePage = () => {
           </div>
         </footer>
       </div>
-
-      {/* Add CSS for animation delays */}
-      <style jsx>{`
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
     </div>
   );
 };
