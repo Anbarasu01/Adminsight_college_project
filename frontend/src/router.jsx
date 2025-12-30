@@ -1,125 +1,120 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
 
-// Layouts
-import AuthLayout from './layouts/AuthLayout';
-import MainLayout from './layouts/MainLayout';
+/* ========== GLOBAL CSS ========== */
+import "./pages/auth/AuthCommon.css";
+import "./pages/public/PublicAuth.css";
+import "./pages/public/PublicLogin.css";
 
-// Public Pages
-import ModernHomePage from '../src/pages/homepage.jsx'; // Add this import
+/* ========== LAYOUTS ========== */
+import AuthLayout from "./layouts/AuthLayout";
+import MainLayout from "./layouts/MainLayout";
 
-// Auth Pages
-import Login from './pages/auth/Login.jsx';
-import Register from './pages/auth/Register.jsx';
-import PublicLogin from './pages/auth/PublicLogin.jsx';
+/* ========== HOME ========== */
+import ModernHomePage from "./pages/homepage.jsx";
 
-// Collector Pages
-import CollectorDashboard from './pages/collector/CollectorDashboard.jsx';
-import CollectorDepartments from './pages/collector/CollectorDepartments.jsx';
-import CollectorProfile from './pages/collector/CollectorProfile.jsx';
-import CollectorTasks from './pages/collector/CollectorTasks.jsx';
-import CollectorNotifications from './pages/collector/CollectorNotifications.jsx';
-import CollectorReports from './pages/collector/CollectorReports.jsx';
-import CollectorUsers from './pages/collector/CollectorUsers.jsx';
+/* ========== AUTH PAGES ========== */
+import Login from "./pages/auth/Login.jsx";
+import Register from "./pages/auth/Register.jsx";
+import ForgotPassword from "./pages/auth/ForgotPassword.jsx";
+import ResetPassword from "./pages/auth/ResetPassword.jsx";
 
-// Department Head Pages
-import DepartmentHeadDashboard from './pages/department-head/DepartmentHeadDashboard.jsx';
-import DepartmentHeadProfile from './pages/department-head/DepartmentHeadProfile.jsx';
-import DepartmentHeadNotifications from './pages/department-head/DepartmentHeadNotifications.jsx';
-import DepartmentReports from './pages/department-head/DepartmentReports.jsx';
-import DepartmentStaff from './pages/department-head/DepartmentStaff.jsx';
+/* ========== PUBLIC AUTH ========== */
+import PublicLogin from "./pages/public/PublicLogin.jsx";
+import PublicRegister from "./pages/public/PublicRegister.jsx";
 
-// Staff Pages
-import StaffDashboard from './pages/staff/StaffDashboard.jsx';
-import StaffProfile from './pages/staff/StaffProfile.jsx';
-import StaffNotifications from './pages/staff/StaffNotifications.jsx';
-import StaffTasks from './pages/staff/StaffTasks.jsx';
-import ReportProblem from './pages/staff/ReportProblem.jsx';
+/* ========== COLLECTOR ========== */
+import CollectorDashboard from "./pages/collector/CollectorDashboard.jsx";
+import CollectorDepartments from "./pages/collector/CollectorDepartments.jsx";
+import CollectorProfile from "./pages/collector/CollectorProfile.jsx";
+import CollectorTasks from "./pages/collector/CollectorTasks.jsx";
+import CollectorNotifications from "./pages/collector/CollectorNotifications.jsx";
+import CollectorReports from "./pages/collector/CollectorReports.jsx";
+import CollectorUsers from "./pages/collector/CollectorUsers.jsx";
 
-// Public Pages
-import PublicDashboard from './pages/public/PublicDashboard.jsx';
-import PublicProfile from './pages/public/PublicProfile.jsx';
-import MyReports from './pages/public/MyReports.jsx';
-import PublicReportProblem from './pages/public/PublicReportProblem.jsx';
+/* ========== DEPARTMENT HEAD ========== */
+import DepartmentHeadDashboard from "./pages/department-head/DepartmentHeadDashboard.jsx";
+import DepartmentHeadProfile from "./pages/department-head/DepartmentHeadProfile.jsx";
+import DepartmentHeadNotifications from "./pages/department-head/DepartmentHeadNotifications.jsx";
+import DepartmentReports from "./pages/department-head/DepartmentReports.jsx";
+import DepartmentStaff from "./pages/department-head/DepartmentStaff.jsx";
 
-// Error Boundary Component
+/* ========== STAFF ========== */
+import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
+import StaffProfile from "./pages/staff/StaffProfile.jsx";
+import StaffNotifications from "./pages/staff/StaffNotifications.jsx";
+import StaffTasks from "./pages/staff/StaffTasks.jsx";
+import ReportProblem from "./pages/staff/ReportProblem.jsx";
+
+/* ========== PUBLIC USER ========== */
+import PublicDashboard from "./pages/public/PublicDashboard.jsx";
+import PublicProfile from "./pages/public/PublicProfile.jsx";
+import MyReports from "./pages/public/PublicMyReports.jsx";
+import PublicReportProblem from "./pages/public/PublicReportProblem.jsx";
+
+/* ========== ERROR BOUNDARY ========== */
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+  state = { hasError: false };
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center p-8 bg-white rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
-            <p className="text-gray-600 mb-6">We're sorry, but something went wrong. Please try refreshing the page.</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Refresh Page
-            </button>
-          </div>
+        <div style={{ padding: 40, textAlign: "center" }}>
+          <h2>Something went wrong</h2>
+          <button onClick={() => window.location.reload()}>Reload</button>
         </div>
       );
     }
-
     return this.props.children;
   }
 }
 
+/* ========== ROUTER ========== */
 const AppRouter = () => {
   const { user } = useAuth();
 
-  // Protected Route component
-  const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-    if (!user) {
-      return <Navigate to="/auth/login" replace />;
-    }
-
-    if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+  /* ===== Protected Route ===== */
+  const ProtectedRoute = ({ children, allowedRoles }) => {
+    if (!user) return <Navigate to="/auth/login" replace />;
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
       return <Navigate to="/unauthorized" replace />;
     }
-
     return children;
   };
 
-  // Public Route component (redirect if already authenticated)
+  /* ===== Public Route (login/register only) ===== */
   const PublicRoute = ({ children }) => {
-    if (user) {
-      // Redirect to appropriate dashboard based on role
-      const dashboardPaths = {
-        public: '/public/dashboard',
-        staff: '/staff/dashboard',
-        collector: '/collector/dashboard',
-        departmentHead: '/department-head/dashboard'
-      };
-      return <Navigate to={dashboardPaths[user.role] || '/dashboard'} replace />;
+    if (!user) return children;
+
+    switch (user.role) {
+      case "public":
+        return <Navigate to="/public/dashboard" replace />;
+      case "staff":
+        return <Navigate to="/staff/dashboard" replace />;
+      case "collector":
+        return <Navigate to="/collector/dashboard" replace />;
+      case "departmentHead":
+        return <Navigate to="/department-head/dashboard" replace />;
+      default:
+        return <Navigate to="/" replace />;
     }
-    return children;
   };
 
   return (
     <ErrorBoundary>
       <Routes>
-        {/* Public Home Page - No authentication required */}
+
+        {/* ===== HOME PAGE (DEFAULT) ===== */}
         <Route path="/" element={<ModernHomePage />} />
 
-        {/* Public Auth Routes */}
-        <Route 
-          path="/auth" 
+        {/* ===== AUTH ROUTES ===== */}
+        <Route
+          path="/auth"
           element={
             <PublicRoute>
               <AuthLayout />
@@ -128,234 +123,61 @@ const AppRouter = () => {
         >
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
-          <Route path="public-login" element={<PublicLogin />} />
-          <Route index element={<Navigate to="login" replace />} />
+          <Route path="forgot-password" element={<ForgotPassword />} />
+          <Route path="reset-password" element={<ResetPassword />} />
         </Route>
 
-        {/* Protected Routes with Main Layout */}
-        <Route 
-          path="/*" 
+        {/* ===== PUBLIC AUTH ===== */}
+        <Route path="/public/login" element={<PublicRoute><PublicLogin /></PublicRoute>} />
+        <Route path="/public/register" element={<PublicRoute><PublicRegister /></PublicRoute>} />
+
+        {/* ===== PUBLIC REPORT (NO LOGIN) ===== */}
+        <Route path="/public/report-problem" element={<PublicReportProblem />} />
+
+        {/* ===== MAIN PROTECTED LAYOUT ===== */}
+        <Route
+          path="/"
           element={
             <ProtectedRoute>
               <MainLayout />
             </ProtectedRoute>
           }
         >
-          {/* Redirect root to appropriate dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          {/* ---- Collector ---- */}
+          <Route path="collector/dashboard" element={<CollectorDashboard />} />
+          <Route path="collector/department" element={<CollectorDepartments />} />
+          <Route path="collector/tasks" element={<CollectorTasks />} />
+          <Route path="collector/profile" element={<CollectorProfile />} />
+          <Route path="collector/notifications" element={<CollectorNotifications />} />
+          <Route path="collector/reports" element={<CollectorReports />} />
+          <Route path="collector/users" element={<CollectorUsers />} />
 
-          {/* Collector Routes */}
-          <Route 
-            path="collector/dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['collector']}>
-                <CollectorDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="collector/department" 
-            element={
-              <ProtectedRoute allowedRoles={['collector']}>
-                <CollectorDepartments />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="collector/tasks" 
-            element={
-              <ProtectedRoute allowedRoles={['collector']}>
-                <CollectorTasks />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="collector/profile" 
-            element={
-              <ProtectedRoute allowedRoles={['collector']}>
-                <CollectorProfile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="collector/notifications" 
-            element={
-              <ProtectedRoute allowedRoles={['collector']}>
-                <CollectorNotifications />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="collector/reports" 
-            element={
-              <ProtectedRoute allowedRoles={['collector']}>
-                <CollectorReports />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="collector/users" 
-            element={
-              <ProtectedRoute allowedRoles={['collector']}>
-                <CollectorUsers />
-              </ProtectedRoute>
-            } 
-          />
+          {/* ---- Department Head ---- */}
+          <Route path="department-head/dashboard" element={<DepartmentHeadDashboard />} />
+          <Route path="department-head/profile" element={<DepartmentHeadProfile />} />
+          <Route path="department-head/notifications" element={<DepartmentHeadNotifications />} />
+          <Route path="department-head/reports" element={<DepartmentReports />} />
+          <Route path="department-head/staff" element={<DepartmentStaff />} />
 
-          {/* Department Head Routes */}
-          <Route 
-            path="department-head/dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['departmentHead']}>
-                <DepartmentHeadDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="department-head/reports" 
-            element={
-              <ProtectedRoute allowedRoles={['departmentHead']}>
-                <DepartmentReports />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="department-head/staff" 
-            element={
-              <ProtectedRoute allowedRoles={['departmentHead']}>
-                <DepartmentStaff />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="department-head/profile" 
-            element={
-              <ProtectedRoute allowedRoles={['departmentHead']}>
-                <DepartmentHeadProfile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="department-head/notifications" 
-            element={
-              <ProtectedRoute allowedRoles={['departmentHead']}>
-                <DepartmentHeadNotifications />
-              </ProtectedRoute>
-            } 
-          />
+          {/* ---- Staff ---- */}
+          <Route path="staff/dashboard" element={<StaffDashboard />} />
+          <Route path="staff/tasks" element={<StaffTasks />} />
+          <Route path="staff/profile" element={<StaffProfile />} />
+          <Route path="staff/notifications" element={<StaffNotifications />} />
+          <Route path="staff/report-problem" element={<ReportProblem />} />
 
-          {/* Staff Routes */}
-          <Route 
-            path="staff/dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['staff']}>
-                <StaffDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="staff/tasks" 
-            element={
-              <ProtectedRoute allowedRoles={['staff']}>
-                <StaffTasks />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="staff/profile" 
-            element={
-              <ProtectedRoute allowedRoles={['staff']}>
-                <StaffProfile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="staff/notifications" 
-            element={
-              <ProtectedRoute allowedRoles={['staff']}>
-                <StaffNotifications />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="staff/report-problem" 
-            element={
-              <ProtectedRoute allowedRoles={['staff']}>
-                <ReportProblem />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Public User Routes */}
-          <Route 
-            path="public/dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['public']}>
-                <PublicDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="public/profile" 
-            element={
-              <ProtectedRoute allowedRoles={['public']}>
-                <PublicProfile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="public/my-reports" 
-            element={
-              <ProtectedRoute allowedRoles={['public']}>
-                <MyReports />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="public/report-problem" 
-            element={
-              <ProtectedRoute allowedRoles={['public']}>
-                <PublicReportProblem />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Common Routes accessible by all authenticated users */}
-          <Route path="dashboard" element={
-            user?.role === 'public' ? <PublicDashboard /> :
-            user?.role === 'staff' ? <StaffDashboard /> :
-            user?.role === 'collector' ? <CollectorDashboard /> :
-            user?.role === 'departmentHead' ? <DepartmentHeadDashboard /> :
-            <Navigate to="/auth/login" replace />
-          } />
-
-          {/* Fallback for unknown routes */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* ---- Public User ---- */}
+          <Route path="public/dashboard" element={<PublicDashboard />} />
+          <Route path="public/profile" element={<PublicProfile />} />
+          <Route path="public/my-reports" element={<MyReports />} />
         </Route>
 
-        {/* Unauthorized page */}
-        <Route path="/unauthorized" element={
-          <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="text-center p-8 bg-white rounded-lg shadow-md max-w-md">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Unauthorized Access</h1>
-              <p className="text-gray-600 mb-6">You don't have permission to access this page.</p>
-              <button 
-                onClick={() => window.history.back()} 
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Go Back
-              </button>
-            </div>
-          </div>
-        } />
+        {/* ===== UNAUTHORIZED ===== */}
+        <Route path="/unauthorized" element={<h2>Unauthorized</h2>} />
 
-        {/* Catch all route - Redirect to home page instead of login */}
+        {/* ===== FALLBACK ===== */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </ErrorBoundary>
   );

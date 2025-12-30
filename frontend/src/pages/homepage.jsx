@@ -40,16 +40,16 @@ const ModernHomePage = () => {
               ) : (
                 <>
                   <Link
-                    to="/auth/login"
+                    to="/public/login"
                     className="text-white/80 hover:text-white transition-colors duration-300 font-medium"
                   >
-                    Sign In
+                    Public Login
                   </Link>
                   <Link
-                    to="/auth/register"
+                    to="/auth/login"
                     className="bg-white text-blue-600 px-6 py-2 rounded-xl hover:bg-gray-100 transition-all duration-300 font-semibold shadow-lg"
                   >
-                    Get Started
+                    Staff Login
                   </Link>
                 </>
               )}
@@ -79,22 +79,109 @@ const ModernHomePage = () => {
               Streamline problem reporting, resource management, and citizen engagement.
             </p>
 
-            {/* CTA Buttons */}
+            {/* User Type Selection - CRITICAL ADDITION */}
+            <div className="max-w-3xl mx-auto bg-white/10 backdrop-blur-sm rounded-3xl p-8 mb-12 border border-white/20">
+              <h3 className="text-2xl font-bold text-white mb-6">Get Started As:</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Public User */}
+                <Link 
+                  to="/public/login"
+                  className="group bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <span className="text-2xl">👨‍👩‍👧‍👦</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">Public User</h4>
+                    <p className="text-white/70 text-sm mb-4">Report problems, track issues</p>
+                    <button className="text-blue-300 font-semibold text-sm group-hover:text-blue-200">
+                      Login / Register →
+                    </button>
+                  </div>
+                </Link>
+
+                {/* Staff */}
+                <Link 
+                  to="/auth/login"
+                  className="group bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-400 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <span className="text-2xl">👨‍💼</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">Staff / Admin</h4>
+                    <p className="text-white/70 text-sm mb-4">Manage reports, assign tasks</p>
+                    <button className="text-green-300 font-semibold text-sm group-hover:text-green-200">
+                      Staff Login →
+                    </button>
+                  </div>
+                </Link>
+
+                {/* Collector */}
+                <Link 
+                  to="/collector/login"
+                  className="group bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <span className="text-2xl">🚚</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">Data Collector</h4>
+                    <p className="text-white/70 text-sm mb-4">Collect field data, update status</p>
+                    <button className="text-yellow-300 font-semibold text-sm group-hover:text-yellow-200">
+                      Collector Login →
+                    </button>
+                  </div>
+                </Link>
+
+                {/* Department Head */}
+                <Link 
+                  to="/department-head/login"
+                  className="group bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <span className="text-2xl">👑</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">Department Head</h4>
+                    <p className="text-white/70 text-sm mb-4">Oversee departments, analytics</p>
+                    <button className="text-purple-300 font-semibold text-sm group-hover:text-purple-200">
+                      Dept. Head Login →
+                    </button>
+                  </div>
+                </Link>
+              </div>
+              
+              {/* Quick Guest Option */}
+              <div className="mt-8 pt-6 border-t border-white/20 text-center">
+                <p className="text-white/80 mb-4">Want to report a problem without account?</p>
+                <Link 
+                  to="/public/report-problem"
+                  className="inline-flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl transition-all duration-300"
+                >
+                  <span>Report Problem as Guest</span>
+                  <span className="text-lg">🚀</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* CTA Buttons - UPDATED */}
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 mb-16">
               <Link
-                to="/public/report-problem"
+                to="/public/register"
                 className="group bg-white text-blue-600 px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center space-x-3"
               >
-                <span>Report a Problem</span>
-                <span className="group-hover:translate-x-1 transition-transform">→</span>
+                <span>Create Public Account</span>
+                <span className="group-hover:translate-x-1 transition-transform">📝</span>
               </Link>
               
               <Link
-                to="/auth/login"
+                to="/public/report-problem"
                 className="group border-2 border-white text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all duration-300 transform hover:-translate-y-1 flex items-center space-x-3"
               >
-                <span>View Demo</span>
-                <span className="group-hover:scale-110 transition-transform">🎯</span>
+                <span>Report Problem Now</span>
+                <span className="group-hover:scale-110 transition-transform">🚨</span>
               </Link>
             </div>
 
@@ -120,42 +207,84 @@ const ModernHomePage = () => {
           </div>
         </div>
 
-        {/* Features Grid */}
+        {/* Features Grid - UPDATED */}
         <div className="max-w-7xl mx-auto px-6 py-20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <span className="text-2xl">🚨</span>
               </div>
-              <h3 className="text-xl font-bold text-white mb-4">Instant Problem Reporting</h3>
-              <p className="text-white/70 leading-relaxed">
-                Report civic issues instantly with our streamlined form. Get real-time tracking and updates.
-              </p>
+              <h3 className="text-xl font-bold text-white mb-4">For Public Users</h3>
+              <ul className="space-y-2 text-white/70">
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Instant problem reporting</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Real-time tracking</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Email/SMS notifications</span>
+                </li>
+              </ul>
+              <Link to="/public/login" className="inline-block mt-4 text-blue-300 hover:text-blue-200 font-medium">
+                Start Reporting →
+              </Link>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <span className="text-2xl">📊</span>
               </div>
-              <h3 className="text-xl font-bold text-white mb-4">Smart Dashboard</h3>
-              <p className="text-white/70 leading-relaxed">
-                AI-powered analytics and insights for efficient resource allocation and problem resolution.
-              </p>
+              <h3 className="text-xl font-bold text-white mb-4">For Staff & Admin</h3>
+              <ul className="space-y-2 text-white/70">
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>AI-powered analytics</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Task assignment system</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Performance monitoring</span>
+                </li>
+              </ul>
+              <Link to="/auth/login" className="inline-block mt-4 text-blue-300 hover:text-blue-200 font-medium">
+                Staff Login →
+              </Link>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
               <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <span className="text-2xl">👥</span>
               </div>
-              <h3 className="text-xl font-bold text-white mb-4">Multi-Role Access</h3>
-              <p className="text-white/70 leading-relaxed">
-                Dedicated interfaces for citizens, staff, department heads, and data collectors.
-              </p>
+              <h3 className="text-xl font-bold text-white mb-4">For Collectors & Dept Heads</h3>
+              <ul className="space-y-2 text-white/70">
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Field data collection</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Department management</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Resource allocation</span>
+                </li>
+              </ul>
+              <Link to="/collector/login" className="inline-block mt-4 text-blue-300 hover:text-blue-200 font-medium">
+                Collector Login →
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* How It Works */}
+        {/* How It Works - UPDATED */}
         <div className="max-w-7xl mx-auto px-6 py-20">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
@@ -168,12 +297,12 @@ const ModernHomePage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { step: "01", title: "Report Issue", desc: "Fill our simple form with problem details", icon: "📝" },
-              { step: "02", title: "Auto Assignment", desc: "System assigns to relevant department", icon: "🤖" },
-              { step: "03", title: "Track Progress", desc: "Real-time updates on resolution status", icon: "📱" },
-              { step: "04", title: "Problem Solved", desc: "Get notified when issue is resolved", icon: "✅" }
+              { step: "01", title: "Report Issue", desc: "Public users submit problem details", icon: "📝", link: "/public/report-problem" },
+              { step: "02", title: "Auto Assignment", desc: "System assigns to relevant department", icon: "🤖", link: "/auth/login" },
+              { step: "03", title: "Track Progress", desc: "Real-time updates on resolution status", icon: "📱", link: "/public/login" },
+              { step: "04", title: "Problem Solved", desc: "Get notified when issue is resolved", icon: "✅", link: "/public/login" }
             ].map((item, index) => (
-              <div key={index} className="text-center group">
+              <Link key={index} to={item.link} className="text-center group">
                 <div className="relative mb-6">
                   <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300 border border-white/20">
                     <span className="text-2xl">{item.icon}</span>
@@ -184,84 +313,98 @@ const ModernHomePage = () => {
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
                 <p className="text-white/70 leading-relaxed">{item.desc}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
 
-        {/* Testimonials */}
-        <div className="max-w-7xl mx-auto px-6 py-20">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Trusted by <span className="text-green-300">Thousands</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: "Sarah Chen", role: "City Mayor", quote: "Reduced response time by 70%", avatar: "👩‍💼" },
-              { name: "Mike Rodriguez", role: "Public Works Director", quote: "Streamlined our entire workflow", avatar: "👨‍💼" },
-              { name: "Emily Watson", role: "Community Manager", quote: "Citizen satisfaction skyrocketed", avatar: "👩‍🔧" }
-            ].map((testimonial, index) => (
-              <div key={index} className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300">
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-xl">
-                    {testimonial.avatar}
-                  </div>
-                  <div>
-                    <div className="font-bold text-white">{testimonial.name}</div>
-                    <div className="text-white/70 text-sm">{testimonial.role}</div>
-                  </div>
-                </div>
-                <p className="text-white/80 italic">"{testimonial.quote}"</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Final CTA */}
+        {/* Final CTA - UPDATED */}
         <div className="max-w-4xl mx-auto px-6 py-20 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Ready to Transform <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Public Service</span>?
+            Choose Your <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Role</span>
           </h2>
           <p className="text-xl text-white/70 mb-8 max-w-2xl mx-auto">
-            Join thousands of satisfied users and government departments using ADMINSIGHT
+            Select your role to access the appropriate login page
           </p>
-          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <Link
-              to="/public/report-problem"
-              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <Link 
+              to="/public/login" 
+              className="bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/20 transition-all duration-300 hover:scale-105"
             >
-              Report a Problem Now
+              <div className="text-2xl mb-2">👨‍👩‍👧‍👦</div>
+              <div className="font-bold text-white">Public User</div>
             </Link>
-            <Link
-              to="/auth/login"
-              className="border-2 border-white text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all duration-300"
+            <Link 
+              to="/auth/login" 
+              className="bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/20 transition-all duration-300 hover:scale-105"
             >
-              Admin Login
+              <div className="text-2xl mb-2">👨‍💼</div>
+              <div className="font-bold text-white">Staff/Admin</div>
+            </Link>
+            <Link 
+              to="/collector/login" 
+              className="bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/20 transition-all duration-300 hover:scale-105"
+            >
+              <div className="text-2xl mb-2">🚚</div>
+              <div className="font-bold text-white">Collector</div>
+            </Link>
+            <Link 
+              to="/department-head/login" 
+              className="bg-white/5 hover:bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/20 transition-all duration-300 hover:scale-105"
+            >
+              <div className="text-2xl mb-2">👑</div>
+              <div className="font-bold text-white">Dept. Head</div>
             </Link>
           </div>
+          
+          <Link
+            to="/public/report-problem"
+            className="inline-block bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+          >
+            ⚡ Report a Problem as Guest (No Login Required)
+          </Link>
         </div>
 
-        {/* Footer */}
+        {/* Footer - UPDATED */}
         <footer className="border-t border-white/20 py-8">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">AI</span>
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">AI</span>
+                  </div>
+                  <span className="text-white font-bold">ADMINSIGHT</span>
                 </div>
-                <span className="text-white font-bold">ADMINSIGHT</span>
+                <p className="text-white/70 text-sm">
+                  Smart governance platform for efficient public service delivery.
+                </p>
               </div>
               
+              <div>
+                <h4 className="text-white font-bold mb-4">Quick Links</h4>
+                <div className="space-y-2">
+                  <Link to="/public/login" className="block text-white/70 hover:text-white transition-colors text-sm">Public Login</Link>
+                  <Link to="/auth/login" className="block text-white/70 hover:text-white transition-colors text-sm">Staff Login</Link>
+                  <Link to="/public/report-problem" className="block text-white/70 hover:text-white transition-colors text-sm">Report Problem</Link>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="text-white font-bold mb-4">Need Help?</h4>
+                <div className="space-y-2">
+                  <Link to="/contact" className="block text-white/70 hover:text-white transition-colors text-sm">Contact Support</Link>
+                  <Link to="/faq" className="block text-white/70 hover:text-white transition-colors text-sm">FAQ</Link>
+                  <Link to="/guide" className="block text-white/70 hover:text-white transition-colors text-sm">User Guide</Link>
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-t border-white/20 pt-8 text-center">
               <div className="text-white/70 text-sm">
-                © 2024 ADMINSIGHT. All rights reserved.
-              </div>
-              
-              <div className="flex space-x-6">
-                <Link to="/privacy" className="text-white/70 hover:text-white transition-colors text-sm">Privacy</Link>
-                <Link to="/terms" className="text-white/70 hover:text-white transition-colors text-sm">Terms</Link>
-                <Link to="/contact" className="text-white/70 hover:text-white transition-colors text-sm">Contact</Link>
+                © 2024 ADMINSIGHT. All rights reserved. | 
+                <Link to="/privacy" className="mx-2 hover:text-white transition-colors">Privacy</Link> | 
+                <Link to="/terms" className="mx-2 hover:text-white transition-colors">Terms</Link>
               </div>
             </div>
           </div>

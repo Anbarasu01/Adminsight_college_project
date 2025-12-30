@@ -1,114 +1,92 @@
-const PublicProblem = require('../models/publicproblems');
-const Notification = require('../models/notificationModel');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const PublicUser = require('../models/PublicUser');
 
-const departmentsList = [
-  "Revenue & Disaster Management",
-  "Health",
-  "Education",
-  "Agriculture",
-  "Police",
-  "Rural Development",
-  "Public Works (PWD)",
-  "Transport",
-  "Social Welfare",
-  "Electricity & Water"
-];
-
-// ✅ 1. Submit a new public problem
-const submitProblem = async (req, res, next) => {
+// ================= REGISTER =================
+const registerPublicUser = async (req, res) => {
   try {
-    const { name, email, phone, department, problemTitle, description, location } = req.body;
+    const { firstName, lastName, email, phone, password } = req.body;
 
-    if (!name || !department || !problemTitle || !description) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    if (!firstName || !lastName || !email || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required',
+      });
     }
 
-    if (!departmentsList.includes(department)) {
-      return res.status(400).json({ message: 'Invalid department' });
+    const userExists = await PublicUser.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists',
+      });
     }
 
-    const problem = await PublicProblem.create({
-      name,
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await PublicUser.create({
+      firstName,
+      lastName,
       email,
       phone,
-      department,
-      problemTitle,
-      description,
-      location,
+      password: hashedPassword,
+      role: 'public',
+      isVerified: true,
     });
 
-    await Notification.create({
-      title: 'New Problem Reported',
-      message: `New public issue in ${department}: ${problemTitle}`,
-      type: 'alert',
-      receiverRole: 'collector',
-      department,
-    });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     res.status(201).json({
       success: true,
-      message: 'Problem submitted successfully',
-      problemId: problem._id,
+      message: 'Registration successful',
+      token,
+      user,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// ✅ 2. Get all problems
-const getProblems = async (req, res, next) => {
+// ================= LOGIN =================
+const loginPublicUser = async (req, res) => {
   try {
-    const problems = await PublicProblem.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, problems });
-  } catch (err) {
-    next(err);
-  }
-};
+    const { email, password } = req.body;
 
-// ✅ 3. Get one problem
-const getProblem = async (req, res, next) => {
-  try {
-    const problem = await PublicProblem.findById(req.params.id);
-    if (!problem) {
-      return res.status(404).json({ message: 'Problem not found' });
+    const user = await PublicUser.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
-    res.status(200).json({ success: true, problem });
-  } catch (err) {
-    next(err);
-  }
-};
 
-// ✅ 4. Update problem status
-const updateProblemStatus = async (req, res, next) => {
-  try {
-    const { status } = req.body;
-    const problem = await PublicProblem.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
     );
 
-    if (!problem) {
-      return res.status(404).json({ message: 'Problem not found' });
-    }
-
-    await Notification.create({
-      title: 'Problem Status Updated',
-      message: `The problem "${problem.problemTitle}" is now marked as ${status}.`,
-      type: 'update',
-      department: problem.department,
-    });
-
-    res.status(200).json({ success: true, message: 'Status updated', problem });
-  } catch (err) {
-    next(err);
+    res.json({ success: true, token, user });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// ✅ Export all
+// ================= PROFILE =================
+const getPublicProfile = async (req, res) => {
+  res.json({ message: 'Public profile API working' });
+};
+
+// ✅ ONLY THIS EXPORT (IMPORTANT)
 module.exports = {
-  submitProblem,
-  getProblems,
-  getProblem,
-  updateProblemStatus,
+  registerPublicUser,
+  loginPublicUser,
+  getPublicProfile,
 };

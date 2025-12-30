@@ -1,22 +1,12 @@
-// export const errorHandler = (err, req, res, next) => {
-//   console.error("Error:", err.message);
-//   res.status(500).json({
-//     success: false,
-//     message: err.message || "Internal Server Error"
-//   });
-// };
-
-
-// backend/middleware/errorMiddleware.js
 const errorHandler = (err, req, res, next) => {
+  console.error('❌ Error:', err.stack);
+
   let error = { ...err };
   error.message = err.message;
 
-  console.error('❌ Error:', err);
-
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
-    const message = 'Resource not found';
+    const message = `Resource not found`;
     error = { message, statusCode: 404 };
   }
 
@@ -32,9 +22,21 @@ const errorHandler = (err, req, res, next) => {
     error = { message: message.join(', '), statusCode: 400 };
   }
 
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    const message = 'Invalid token';
+    error = { message, statusCode: 401 };
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    const message = 'Token expired';
+    error = { message, statusCode: 401 };
+  }
+
   res.status(error.statusCode || 500).json({
     success: false,
-    message: error.message || 'Server Error'
+    error: error.message || 'Server Error',
+    stack: process.env.NODE_ENV === 'production' ? null : err.stack
   });
 };
 
