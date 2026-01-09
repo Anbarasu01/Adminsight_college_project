@@ -1,18 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getPublicProblems,
-  assignDepartment,
-  updateProblemStatus,
-  getCollectorStats,
-  getDepartments
-} = require('../controllers/collectorController');
+const collectorController = require('../controllers/collectorController');
 
-// Collector routes for managing public problems
-router.get('/problems', getPublicProblems);           // Get all public problems
-router.put('/problems/:id/assign', assignDepartment); // Assign department to problem
-router.put('/problems/:id/status', updateProblemStatus); // Update problem status
-router.get('/stats', getCollectorStats);              // Get collector dashboard stats
-router.get('/departments', getDepartments);           // Get department list
+// Assign department to problem
+router.put('/problems/:problemId/assign', collectorController.assignDepartment);
+
+// Update problem status
+router.put('/problems/:problemId/status', collectorController.updateProblemStatus);
+
+// Get all public problems
+router.get('/problems', collectorController.getPublicProblems);
+
+// Get collector stats
+router.get('/stats', collectorController.getCollectorStats);
+
+// Get department list
+router.get('/departments', collectorController.getDepartments);
 
 module.exports = router;

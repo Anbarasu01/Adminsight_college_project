@@ -12,21 +12,24 @@ const getPublicProblems = async (req, res) => {
       count: problems.length,
       problems: problems.map(problem => ({
         _id: problem._id,
-        name: problem.name,
-        email: problem.email,
-        phone: problem.phone,
-        department: problem.department,
-        problemTitle: problem.problemTitle,
+        trackingId: problem.trackingId,
+        name: problem.submittedBy?.name || 'Anonymous',
+        email: problem.submittedBy?.email || 'No email',
+        phone: problem.submittedBy?.phone || 'No phone',
+        department: problem.category,
+        problemTitle: problem.title,
         description: problem.description,
         location: problem.location,
         status: problem.status,
-        assignedDepartment: problem.assignedDepartment,
+        assignedDepartment: problem.assignedTo,
         priority: problem.priority,
         createdAt: problem.createdAt,
-        updatedAt: problem.updatedAt
+        updatedAt: problem.updatedAt,
+        images: problem.images || []
       }))
     });
   } catch (error) {
+    console.error('Get problems error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching problems',
@@ -35,28 +38,17 @@ const getPublicProblems = async (req, res) => {
   }
 };
 
-// ✅ Assign department to a problem
+// ✅ Assign department to problem
 const assignDepartment = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { department } = req.body;
+    const { problemId } = req.params;
+    const { departmentName } = req.body;
 
-    if (!department) {
-      return res.status(400).json({
-        success: false,
-        message: 'Department is required'
-      });
-    }
+    console.log(`Assigning department to problem:`, { problemId, departmentName });
 
-    const problem = await PublicProblem.findByIdAndUpdate(
-      id,
-      { 
-        assignedDepartment: department,
-        status: 'In Progress' // Update status when assigned
-      },
-      { new: true }
-    );
-
+    // Find the problem
+    const problem = await PublicProblem.findById(problemId);
+    
     if (!problem) {
       return res.status(404).json({
         success: false,
@@ -64,21 +56,38 @@ const assignDepartment = async (req, res) => {
       });
     }
 
-    // Create notification
-    await Notification.create({
-      title: 'Problem Assigned',
-      message: `Problem "${problem.problemTitle}" assigned to ${department}`,
-      type: 'assignment',
-      department: department,
-      problemId: problem._id
+    // Update the problem with department name
+    problem.assignedDepartment = departmentName;
+    problem.status = 'in-progress';
+    problem.updatedAt = Date.now();
+    
+    await problem.save();
+
+    // Create a notification for the department
+    try {
+      await Notification.create({
+        title: 'Department Assignment',
+        message: `Problem "${problem.title}" has been assigned to ${departmentName}`,
+        type: 'department_assignment',
+        recipient: departmentName,
+        relatedProblem: problemId,
+        createdAt: Date.now()
+      });
+      
+      console.log('Notification created for department:', departmentName);
+    } catch (notificationError) {
+      console.error('Failed to create notification:', notificationError);
+      // Don't fail the whole request if notification fails
+    }
+
+    res.json({
+      success: true,
+      message: `Problem assigned to ${departmentName} successfully`,
+      data: problem
     });
 
-    res.status(200).json({
-      success: true,
-      message: `Problem successfully assigned to ${department}`,
-      problem
-    });
   } catch (error) {
+    console.error('Assign department error:', error);
     res.status(500).json({
       success: false,
       message: 'Error assigning department',
@@ -86,27 +95,27 @@ const assignDepartment = async (req, res) => {
     });
   }
 };
-
+// ✅ Update problem status
 // ✅ Update problem status
 const updateProblemStatus = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { problemId } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ['Pending', 'In Progress', 'Resolved', 'Closed'];
+    // Validate status
+    const validStatuses = ['pending', 'in-progress', 'resolved', 'closed'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status'
+        message: 'Invalid status. Must be: ' + validStatuses.join(', ')
       });
     }
 
-    const problem = await PublicProblem.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
+    console.log(`Updating problem status:`, { problemId, status });
 
+    // Find and update the problem
+    const problem = await PublicProblem.findById(problemId);
+    
     if (!problem) {
       return res.status(404).json({
         success: false,
@@ -114,35 +123,52 @@ const updateProblemStatus = async (req, res) => {
       });
     }
 
-    await Notification.create({
-      title: 'Status Updated',
-      message: `Problem "${problem.problemTitle}" status changed to ${status}`,
-      type: 'status_update',
-      department: problem.assignedDepartment,
-      problemId: problem._id
+    problem.status = status;
+    problem.updatedAt = Date.now();
+    
+    // If resolved or closed, set resolvedAt
+    if (status === 'resolved' || status === 'closed') {
+      problem.resolvedAt = Date.now();
+    }
+    
+    await problem.save();
+
+    // Create notification
+    try {
+      await Notification.create({
+        title: 'Status Update',
+        message: `Problem "${problem.title}" status updated to ${status}`,
+        type: 'status_update',
+        recipient: problem.assignedDepartment || 'Department',
+        relatedProblem: problemId,
+        createdAt: Date.now()
+      });
+    } catch (notificationError) {
+      console.error('Failed to create status notification:', notificationError);
+    }
+
+    res.json({
+      success: true,
+      message: `Problem status updated to ${status} successfully`,
+      data: problem
     });
 
-    res.status(200).json({
-      success: true,
-      message: 'Status updated successfully',
-      problem
-    });
   } catch (error) {
+    console.error('Update status error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error updating status',
+      message: 'Error updating problem status',
       error: error.message
     });
   }
 };
-
 // ✅ Get collector dashboard statistics
 const getCollectorStats = async (req, res) => {
   try {
     const totalProblems = await PublicProblem.countDocuments();
-    const pending = await PublicProblem.countDocuments({ status: 'Pending' });
-    const inProgress = await PublicProblem.countDocuments({ status: 'In Progress' });
-    const resolved = await PublicProblem.countDocuments({ status: 'Resolved' });
+    const pending = await PublicProblem.countDocuments({ status: 'pending' });
+    const inProgress = await PublicProblem.countDocuments({ status: 'in-progress' });
+    const resolved = await PublicProblem.countDocuments({ status: 'resolved' });
 
     res.status(200).json({
       success: true,

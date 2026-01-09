@@ -60,6 +60,8 @@
     "is-number": "^7.0.0",
     "is-promise": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "jwa": "^1.4.2",
     "jws": "^3.2.2",
     "kareem": "^2.6.3",
