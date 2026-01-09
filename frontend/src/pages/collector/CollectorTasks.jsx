@@ -1,398 +1,416 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import CollectorLayout from '../../layouts/CollectorLayout';
 
 const CollectorTasks = () => {
   const [tasks, setTasks] = useState([]);
-  const [customers, setCustomers] = useState([]); // NEW: Collector's customers
+  const [customers, setCustomers] = useState([]);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [showTaskForm, setShowTaskForm] = useState(false); // NEW: Task form modal
-  const [showNoteForm, setShowNoteForm] = useState(false); // NEW: Note form modal
-  const [selectedTask, setSelectedTask] = useState(null); // NEW: Selected task for notes
-  const [taskForm, setTaskForm] = useState({ // NEW: Task form data
-    type: 'collection',
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [taskNotes, setTaskNotes] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0
+  });
+  
+  // States for details modal
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [detailsTask, setDetailsTask] = useState(null);
+  const [taskDetails, setTaskDetails] = useState({});
+  
+  const [taskForm, setTaskForm] = useState({
     title: '',
     description: '',
-    customerId: '',
+    type: 'collection',
     priority: 'medium',
+    customerId: '',
     scheduledDate: '',
     scheduledTime: '',
     location: '',
     notes: ''
   });
-  const [noteForm, setNoteForm] = useState({ // NEW: Note form data
+  
+  const [noteForm, setNoteForm] = useState({
     content: '',
     type: 'general',
     attachment: null
   });
-  const [taskNotes, setTaskNotes] = useState([]); // NEW: Task notes storage
-  const navigate = useNavigate();
+  
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // Mock collector ID
-  const collectorId = 'collector_001';
+  // Get auth token
+  const getAuthToken = () => {
+    return localStorage.getItem('token') || '';
+  };
 
   useEffect(() => {
     fetchTasks();
     fetchCollectorCustomers();
-    fetchTaskNotes();
-  }, []);
+  }, [filter]);
 
   const fetchTasks = async () => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Mock tasks specific to this collector
-    const mockTasks = [
-      {
-        id: 1,
-        title: 'Daily Collection Round - Area A1',
-        location: 'Area A1, District A',
-        priority: 'high',
-        status: 'pending',
-        dueDate: '2024-01-15',
-        assignedBy: 'Supervisor',
-        assignedTo: collectorId,
-        description: 'Collect payments from assigned customers in Area A1. Focus on overdue accounts.',
-        type: 'collection',
-        customerIds: ['C001', 'C002'],
-        scheduledDate: '2024-01-15',
-        scheduledTime: '10:00 AM',
-        estimatedDuration: '3 hours',
-        notes: 'Start with John Doe (C001) - $1,250.75 balance',
-        createdAt: '2024-01-14',
-        updatedAt: '2024-01-14'
-      },
-      {
-        id: 2,
-        title: 'Overdue Payment Follow-up',
-        location: 'Customer Locations - District A',
-        priority: 'medium',
-        status: 'in-progress',
-        dueDate: '2024-01-16',
-        assignedBy: 'Accounts Department',
-        assignedTo: collectorId,
-        description: 'Visit customers with overdue payments to arrange payment plans.',
-        type: 'followup',
-        customerIds: ['C002', 'C005'],
-        scheduledDate: '2024-01-16',
-        scheduledTime: '2:00 PM',
-        estimatedDuration: '4 hours',
-        notes: 'Jane Smith (C002) - 15 days overdue, Mike Brown (C005) - 25 days overdue',
-        createdAt: '2024-01-13',
-        updatedAt: '2024-01-15'
-      },
-      {
-        id: 3,
-        title: 'New Customer Registration',
-        location: 'Zone 1, District A',
-        priority: 'low',
-        status: 'pending',
-        dueDate: '2024-01-17',
-        assignedBy: 'Registration Department',
-        assignedTo: collectorId,
-        description: 'Register new customers and collect initial payments.',
-        type: 'registration',
-        customerIds: [],
-        scheduledDate: '2024-01-17',
-        scheduledTime: '9:00 AM',
-        estimatedDuration: '5 hours',
-        notes: 'Bring registration forms and receipt book',
-        createdAt: '2024-01-14',
-        updatedAt: '2024-01-14'
-      },
-      {
-        id: 4,
-        title: 'Weekly Collection Report',
-        location: 'Collector Office',
-        priority: 'medium',
-        status: 'completed',
-        dueDate: '2024-01-12',
-        assignedBy: 'Management',
-        assignedTo: collectorId,
-        description: 'Submit weekly collection report with all transactions.',
-        type: 'report',
-        customerIds: [],
-        scheduledDate: '2024-01-12',
-        scheduledTime: '4:00 PM',
-        estimatedDuration: '1 hour',
-        notes: 'Include all collections from Jan 8-12',
-        createdAt: '2024-01-10',
-        updatedAt: '2024-01-12'
-      },
-      {
-        id: 5,
-        title: 'Receipt Distribution',
-        location: 'Customer Homes - Area B2',
-        priority: 'medium',
-        status: 'in-progress',
-        dueDate: '2024-01-18',
-        assignedBy: 'Accounts Department',
-        assignedTo: collectorId,
-        description: 'Distribute payment receipts to customers.',
-        type: 'distribution',
-        customerIds: ['C001', 'C003'],
-        scheduledDate: '2024-01-18',
-        scheduledTime: '11:00 AM',
-        estimatedDuration: '2 hours',
-        notes: 'Ensure all receipts are signed',
-        createdAt: '2024-01-15',
-        updatedAt: '2024-01-15'
-      },
-      {
-        id: 6,
-        title: 'Legal Document Delivery',
-        location: 'Legal Department & Customer Locations',
-        priority: 'high',
-        status: 'pending',
-        dueDate: '2024-01-19',
-        assignedBy: 'Legal Department',
-        assignedTo: collectorId,
-        description: 'Deliver legal notices to customers with serious overdue accounts.',
-        type: 'legal',
-        customerIds: ['C005'],
-        scheduledDate: '2024-01-19',
-        scheduledTime: '3:00 PM',
-        estimatedDuration: '3 hours',
-        notes: 'Handle with care - sensitive documents',
-        createdAt: '2024-01-14',
-        updatedAt: '2024-01-14'
-      }
-    ];
-    setTasks(mockTasks);
-    setLoading(false);
-  };
-
-  const fetchCollectorCustomers = async () => {
-    // Mock customers assigned to this collector
-    const mockCustomers = [
-      { id: 'C001', name: 'John Doe', accountNumber: 'ACC123456', balance: 1250.75, status: 'active' },
-      { id: 'C002', name: 'Jane Smith', accountNumber: 'ACC123457', balance: 3200.50, status: 'active', overdueDays: 15 },
-      { id: 'C003', name: 'Bob Johnson', accountNumber: 'ACC123458', balance: 850.25, status: 'active' },
-      { id: 'C005', name: 'Mike Brown', accountNumber: 'ACC123460', balance: 4500.00, status: 'active', overdueDays: 25 }
-    ];
-    setCustomers(mockCustomers);
-  };
-
-  const fetchTaskNotes = async () => {
-    // Mock task notes
-    const mockNotes = [
-      {
-        id: 1,
-        taskId: 2,
-        collectorId: collectorId,
-        content: 'Customer Jane Smith agreed to payment plan of $800/month starting next month.',
-        type: 'call_record',
-        attachment: null,
-        createdAt: '2024-01-15 14:30',
-        createdBy: 'Collector'
-      },
-      {
-        id: 2,
-        taskId: 4,
-        collectorId: collectorId,
-        content: 'Weekly report submitted successfully. Total collections: $2,850.75',
-        type: 'note',
-        attachment: 'report_2024_01_12.pdf',
-        createdAt: '2024-01-12 16:45',
-        createdBy: 'Collector'
-      },
-      {
-        id: 3,
-        taskId: 1,
-        collectorId: collectorId,
-        content: 'Customer John Doe not available. Left payment reminder notice.',
-        type: 'visit_log',
-        attachment: 'notice_photo.jpg',
-        createdAt: '2024-01-15 11:20',
-        createdBy: 'Collector'
-      }
-    ];
-    setTaskNotes(mockNotes);
-  };
-
-  const filteredTasks = tasks.filter(task => 
-    filter === 'all' || task.status === filter
-  );
-
-  const updateTaskStatus = (taskId, newStatus) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, status: newStatus, updatedAt: new Date().toISOString().split('T')[0] } : task
-    ));
-    
-    // If task is starting, create a visit log
-    if (newStatus === 'in-progress') {
-      const task = tasks.find(t => t.id === taskId);
-      if (task) {
-        addTaskNote(taskId, {
-          content: `Started task: ${task.title}`,
-          type: 'status_update'
-        });
-      }
-    }
-    
-    // If task is completed, create completion note
-    if (newStatus === 'completed') {
-      const task = tasks.find(t => t.id === taskId);
-      if (task) {
-        addTaskNote(taskId, {
-          content: `Completed task: ${task.title}`,
-          type: 'completion_note'
-        });
-      }
-    }
-  };
-
-  // NEW: Create a new task note
-  const addTaskNote = (taskId, noteData) => {
-    const newNote = {
-      id: taskNotes.length + 1,
-      taskId,
-      collectorId,
-      content: noteData.content,
-      type: noteData.type || 'general',
-      attachment: noteData.attachment || null,
-      createdAt: new Date().toLocaleString(),
-      createdBy: 'Collector'
-    };
-    
-    setTaskNotes(prev => [newNote, ...prev]);
-    
-    // Update task's last updated date
-    setTasks(prev => prev.map(task => 
-      task.id === taskId 
-        ? { ...task, notes: noteData.content, updatedAt: new Date().toISOString().split('T')[0] }
-        : task
-    ));
-    
-    return newNote;
-  };
-
-  // NEW: Handle task form submission
-  const handleTaskFormSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
     try {
-      // Validate form
-      if (!taskForm.title || !taskForm.description || !taskForm.scheduledDate) {
-        alert('Please fill in all required fields');
-        setLoading(false);
-        return;
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE_URL}/tasks/collector${filter !== 'all' ? `?status=${filter}` : ''}`, 
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newTask = {
-        id: tasks.length + 1,
-        title: taskForm.title,
-        location: taskForm.location || 'To be assigned',
-        priority: taskForm.priority,
-        status: 'pending',
-        dueDate: taskForm.scheduledDate,
-        assignedBy: 'Self-created',
-        assignedTo: collectorId,
-        description: taskForm.description,
-        type: taskForm.type,
-        customerIds: taskForm.customerId ? [taskForm.customerId] : [],
-        scheduledDate: taskForm.scheduledDate,
-        scheduledTime: taskForm.scheduledTime || 'Anytime',
-        estimatedDuration: '2 hours',
-        notes: taskForm.notes || '',
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
-      };
-      
-      setTasks(prev => [newTask, ...prev]);
-      
-      // Add initial note
-      addTaskNote(newTask.id, {
-        content: `Task created: ${taskForm.title}`,
-        type: 'creation_note'
-      });
-      
-      // Reset form
-      setTaskForm({
-        type: 'collection',
-        title: '',
-        description: '',
-        customerId: '',
-        priority: 'medium',
-        scheduledDate: '',
-        scheduledTime: '',
-        location: '',
-        notes: ''
-      });
-      
-      setShowTaskForm(false);
-      alert('Task created successfully!');
-      
+
+      const data = await response.json();
+      if (data.success) {
+        setTasks(data.data || []);
+        setStats(data.stats || { total: 0, pending: 0, inProgress: 0, completed: 0 });
+      }
     } catch (error) {
-      console.error('Error creating task:', error);
-      alert('Failed to create task');
+      console.error('Error fetching tasks:', error);
+      alert('Failed to load tasks. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // NEW: Handle note form submission
-  const handleNoteFormSubmit = async (e) => {
-    e.preventDefault();
+  const fetchCollectorCustomers = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/tasks/collector/customers`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCustomers(data.data && data.data.length > 0 ? data.data : [
+            { _id: "1", name: "John Doe", accountNumber: "ACC001", balance: 1250.75 },
+            { _id: "2", name: "Jane Smith", accountNumber: "ACC002", balance: 3200.50 }
+          ]);
+        }
+      } else {
+        setCustomers([
+          { _id: "1", name: "John Doe", accountNumber: "ACC001", balance: 1250.75 },
+          { _id: "2", name: "Jane Smith", accountNumber: "ACC002", balance: 3200.50 }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      setCustomers([
+        { _id: "1", name: "John Doe", accountNumber: "ACC001", balance: 1250.75 },
+        { _id: "2", name: "Jane Smith", accountNumber: "ACC002", balance: 3200.50 }
+      ]);
+    }
+  };
+
+  // Fetch detailed task information for modal
+  const fetchTaskDetails = async (taskId) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTaskDetails(prev => ({
+            ...prev,
+            [taskId]: data.data
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching task details:', error);
+    }
+  };
+
+  const fetchTaskNotes = async (taskId) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/tasks/collector/${taskId}/notes`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTaskNotes(data.data || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching task notes:', error);
+    }
+  };
+
+  // Open details modal
+  const handleShowDetails = async (task) => {
+    setDetailsTask(task);
+    setShowDetailsModal(true);
     
-    if (!noteForm.content) {
-      alert('Please enter note content');
+    // Fetch additional details if not already loaded
+    if (!taskDetails[task._id]) {
+      await fetchTaskDetails(task._id);
+    }
+    fetchTaskNotes(task._id);
+  };
+
+  const updateTaskStatus = async (taskId, newStatus) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/tasks/collector/${taskId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setTasks(prev => prev.map(task => 
+          task._id === taskId 
+            ? { ...task, status: newStatus, updatedAt: new Date().toISOString() }
+            : task
+        ));
+        
+        // Update in modal if open
+        if (detailsTask && detailsTask._id === taskId) {
+          setDetailsTask(prev => ({ ...prev, status: newStatus }));
+        }
+        
+        fetchTasks();
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      alert('Failed to update task status. Please try again.');
+    }
+  };
+
+  const handleTaskFormSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const token = getAuthToken();
+      
+      if (!taskForm.title || !taskForm.description) {
+        alert('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+      
+      const requestData = {
+        title: taskForm.title,
+        description: taskForm.description,
+        type: taskForm.type,
+        priority: taskForm.priority,
+        location: taskForm.location || '',
+        notes: taskForm.notes || ''
+      };
+      
+      if (taskForm.customerId && taskForm.customerId.trim() !== '') {
+        requestData.customerId = taskForm.customerId;
+      }
+      
+      if (taskForm.scheduledDate) {
+        try {
+          let dateString = taskForm.scheduledDate;
+          
+          if (taskForm.scheduledTime) {
+            if (dateString.includes('-')) {
+              const parts = dateString.split('-');
+              if (parts.length === 3) {
+                dateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
+              }
+            }
+            
+            const dateTimeString = `${dateString}T${taskForm.scheduledTime}:00`;
+            const dateObj = new Date(dateTimeString);
+            
+            if (!isNaN(dateObj.getTime())) {
+              requestData.scheduledDate = dateObj.toISOString();
+              requestData.dueDate = dateObj.toISOString();
+            }
+          } else {
+            if (dateString.includes('-')) {
+              const parts = dateString.split('-');
+              if (parts.length === 3) {
+                dateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
+              }
+            }
+            
+            const dateObj = new Date(dateString);
+            if (!isNaN(dateObj.getTime())) {
+              requestData.scheduledDate = dateObj.toISOString();
+              requestData.dueDate = dateObj.toISOString();
+            }
+          }
+        } catch (error) {
+          console.warn('Date formatting error:', error);
+          requestData.scheduledDate = taskForm.scheduledDate;
+        }
+      }
+      
+      console.log('📤 Sending task data:', requestData);
+      
+      const response = await fetch(`${API_BASE_URL}/tasks/collector`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      if (data.success) {
+        setTasks(prev => [data.data, ...prev]);
+        
+        setTaskForm({
+          title: '',
+          description: '',
+          type: 'collection',
+          priority: 'medium',
+          customerId: '',
+          scheduledDate: '',
+          scheduledTime: '',
+          location: '',
+          notes: ''
+        });
+        
+        setShowTaskForm(false);
+        alert('Task created successfully!');
+        
+        fetchTasks();
+      } else {
+        throw new Error(data.message || 'Failed to create task');
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      alert(`Failed to create task: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNoteFormSubmit = async (taskId) => {
+    if (!noteForm.content.trim()) return;
+    
+    try {
+      const token = getAuthToken();
+      
+      const requestData = {
+        content: noteForm.content,
+        type: noteForm.type
+      };
+      
+      console.log('📝 Sending note data:', requestData);
+      
+      const response = await fetch(`${API_BASE_URL}/tasks/collector/${taskId}/notes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setTaskNotes(prev => [...prev, data.data]);
+        
+        setNoteForm({
+          content: '',
+          type: 'general',
+          attachment: null
+        });
+        
+        setShowNoteModal(false);
+        alert('Note added successfully!');
+        
+        fetchTaskNotes(taskId);
+      }
+    } catch (error) {
+      console.error('Error adding note:', error);
+      alert(`Failed to add note: ${error.message}`);
+    }
+  };
+
+  const openNoteForm = (task) => {
+    setSelectedTask(task);
+    setShowNoteModal(true);
+    fetchTaskNotes(task._id);
+  };
+
+  const deleteNote = async (noteId) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) {
       return;
     }
     
-    const newNote = addTaskNote(selectedTask.id, {
-      content: noteForm.content,
-      type: noteForm.type,
-      attachment: noteForm.attachment
-    });
-    
-    // Reset form
-    setNoteForm({
-      content: '',
-      type: 'general',
-      attachment: null
-    });
-    
-    setShowNoteForm(false);
-    setSelectedTask(null);
-    
-    alert(`Note added to task: ${selectedTask.title}`);
-  };
-
-  // NEW: Open note form for a task
-  const openNoteForm = (task) => {
-    setSelectedTask(task);
-    setShowNoteForm(true);
-  };
-
-  // NEW: Get notes for a specific task
-  const getTaskNotes = (taskId) => {
-    return taskNotes.filter(note => note.taskId === taskId);
-  };
-
-  // NEW: Delete a note (own notes only)
-  const deleteNote = (noteId) => {
-    if (window.confirm('Are you sure you want to delete this note?')) {
-      const note = taskNotes.find(n => n.id === noteId);
-      if (note && note.collectorId === collectorId) {
-        setTaskNotes(prev => prev.filter(n => n.id !== noteId));
-        alert('Note deleted successfully');
-      } else {
-        alert('You can only delete your own notes');
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/tasks/collector/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setTaskNotes(prev => prev.filter(note => note._id !== noteId));
+        alert('Note deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      alert('Failed to delete note. Please try again.');
     }
   };
 
-  // NEW: Upload file for note attachment
-  const handleFileUpload = (e, formType) => {
+  const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword'];
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const maxSize = 5 * 1024 * 1024;
       
       if (!validTypes.includes(file.type)) {
         alert('Please upload PDF, JPEG, PNG, or Word documents only');
@@ -404,12 +422,7 @@ const CollectorTasks = () => {
         return;
       }
       
-      if (formType === 'note') {
-        setNoteForm(prev => ({ ...prev, attachment: file }));
-      } else if (formType === 'task') {
-        // For task-level attachments
-        alert(`File "${file.name}" will be attached to the task`);
-      }
+      setNoteForm(prev => ({ ...prev, attachment: file }));
     }
   };
 
@@ -442,23 +455,32 @@ const CollectorTasks = () => {
     }
   };
 
-  const getTaskCountByStatus = (status) => {
-    return tasks.filter(task => task.status === status).length;
-  };
-
   const formatDate = (dateString) => {
+    if (!dateString) return 'Not set';
     return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   const isOverdue = (dueDate) => {
+    if (!dueDate) return false;
     return new Date(dueDate) < new Date();
   };
 
-  // NEW: Get type icon
   const getTypeIcon = (type) => {
     switch(type) {
       case 'collection': return '💰';
@@ -471,7 +493,6 @@ const CollectorTasks = () => {
     }
   };
 
-  // NEW: Get note type icon
   const getNoteTypeIcon = (type) => {
     switch(type) {
       case 'call_record': return '📞';
@@ -481,6 +502,10 @@ const CollectorTasks = () => {
       case 'creation_note': return '🆕';
       default: return '📝';
     }
+  };
+
+  const getTaskNotesForDisplay = (taskId) => {
+    return taskNotes.filter(note => note.taskId === taskId);
   };
 
   return (
@@ -509,22 +534,22 @@ const CollectorTasks = () => {
         {/* Task Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 p-6 text-center hover:shadow-xl transition-shadow duration-300">
-            <div className="text-4xl font-bold text-blue-600 mb-2">{tasks.length}</div>
+            <div className="text-4xl font-bold text-blue-600 mb-2">{stats.total}</div>
             <div className="text-sm text-gray-600 font-medium">Total Tasks</div>
             <div className="text-xs text-gray-500 mt-1">Assigned to you</div>
           </div>
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-yellow-100 p-6 text-center hover:shadow-xl transition-shadow duration-300">
-            <div className="text-4xl font-bold text-yellow-600 mb-2">{getTaskCountByStatus('pending')}</div>
+            <div className="text-4xl font-bold text-yellow-600 mb-2">{stats.pending}</div>
             <div className="text-sm text-gray-600 font-medium">Pending</div>
             <div className="text-xs text-gray-500 mt-1">Awaiting action</div>
           </div>
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 p-6 text-center hover:shadow-xl transition-shadow duration-300">
-            <div className="text-4xl font-bold text-blue-600 mb-2">{getTaskCountByStatus('in-progress')}</div>
+            <div className="text-4xl font-bold text-blue-600 mb-2">{stats.inProgress}</div>
             <div className="text-sm text-gray-600 font-medium">In Progress</div>
             <div className="text-xs text-gray-500 mt-1">Currently working</div>
           </div>
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-green-100 p-6 text-center hover:shadow-xl transition-shadow duration-300">
-            <div className="text-4xl font-bold text-green-600 mb-2">{getTaskCountByStatus('completed')}</div>
+            <div className="text-4xl font-bold text-green-600 mb-2">{stats.completed}</div>
             <div className="text-sm text-gray-600 font-medium">Completed</div>
             <div className="text-xs text-gray-500 mt-1">Finished tasks</div>
           </div>
@@ -549,7 +574,7 @@ const CollectorTasks = () => {
               </select>
             </div>
             <div className="text-sm text-gray-600">
-              Showing <span className="font-bold text-blue-600">{filteredTasks.length}</span> of <span className="font-bold text-blue-600">{tasks.length}</span> tasks
+              Showing <span className="font-bold text-blue-600">{tasks.length}</span> tasks
             </div>
           </div>
         </div>
@@ -560,7 +585,7 @@ const CollectorTasks = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
             <p className="text-gray-600">Loading your tasks...</p>
           </div>
-        ) : filteredTasks.length === 0 ? (
+        ) : tasks.length === 0 ? (
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 p-12 text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">📭</span>
@@ -581,9 +606,9 @@ const CollectorTasks = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredTasks.map(task => (
+            {tasks.map(task => (
               <div 
-                key={task.id} 
+                key={task._id} 
                 className={`bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-100 border-l-4 ${getCardBorderColor(task.priority)} hover:shadow-xl transition-all duration-300 overflow-hidden hover:-translate-y-1`}
               >
                 <div className="p-6">
@@ -598,10 +623,10 @@ const CollectorTasks = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className={getPriorityStyles(task.priority)}>
-                          {task.priority.toUpperCase()} PRIORITY
+                          {task.priority?.toUpperCase() || 'MEDIUM'} PRIORITY
                         </span>
                         <span className={getStatusStyles(task.status)}>
-                          {task.status.replace('-', ' ').toUpperCase()}
+                          {task.status?.replace('-', ' ').toUpperCase() || 'PENDING'}
                         </span>
                       </div>
                     </div>
@@ -616,38 +641,41 @@ const CollectorTasks = () => {
 
                   {/* Task Details */}
                   <div className="space-y-3 mb-4">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-blue-500">📍</span>
-                      <span className="text-sm text-gray-700">{task.location}</span>
-                    </div>
+                    {task.location && (
+                      <div className="flex items-center space-x-3">
+                        <span className="text-blue-500">📍</span>
+                        <span className="text-sm text-gray-700">{task.location}</span>
+                      </div>
+                    )}
 
-                    <div className="flex items-center space-x-3">
-                      <span className="text-blue-500">📅</span>
-                      <span className={`text-sm font-medium ${
-                        isOverdue(task.dueDate) ? 'text-red-600' : 'text-gray-700'
-                      }`}>
-                        Due: {formatDate(task.dueDate)}
-                        {isOverdue(task.dueDate) && (
-                          <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
-                            OVERDUE
-                          </span>
-                        )}
-                      </span>
-                    </div>
+                    {task.dueDate && (
+                      <div className="flex items-center space-x-3">
+                        <span className="text-blue-500">📅</span>
+                        <span className={`text-sm font-medium ${
+                          isOverdue(task.dueDate) && task.status !== 'completed' ? 'text-red-600' : 'text-gray-700'
+                        }`}>
+                          Due: {formatDate(task.dueDate)}
+                          {isOverdue(task.dueDate) && task.status !== 'completed' && (
+                            <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                              OVERDUE
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
 
-                    <div className="flex items-center space-x-3">
-                      <span className="text-blue-500">👤</span>
-                      <span className="text-sm text-gray-700">Assigned by: {task.assignedBy}</span>
-                    </div>
+                    {task.assignedBy && (
+                      <div className="flex items-center space-x-3">
+                        <span className="text-blue-500">👤</span>
+                        <span className="text-sm text-gray-700">Assigned by: {task.assignedBy?.name || 'System'}</span>
+                      </div>
+                    )}
 
-                    {task.customerIds.length > 0 && (
+                    {task.customerIds && task.customerIds.length > 0 && (
                       <div className="flex items-center space-x-3">
                         <span className="text-blue-500">👥</span>
                         <span className="text-sm text-gray-700">
-                          Customers: {task.customerIds.map(id => {
-                            const customer = customers.find(c => c.id === id);
-                            return customer ? customer.name : id;
-                          }).join(', ')}
+                          {task.customerIds.length} customer(s)
                         </span>
                       </div>
                     )}
@@ -655,24 +683,26 @@ const CollectorTasks = () => {
                     {task.notes && (
                       <div className="flex items-start space-x-3 pt-2 border-t border-gray-100">
                         <span className="text-blue-500 mt-1">📝</span>
-                        <span className="text-sm text-gray-600 italic">"{task.notes}"</span>
+                        <span className="text-sm text-gray-600 italic line-clamp-2">"{task.notes}"</span>
                       </div>
                     )}
                   </div>
 
                   {/* Task Notes Preview */}
-                  {getTaskNotes(task.id).length > 0 && (
+                  {getTaskNotesForDisplay(task._id).length > 0 && (
                     <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700">Recent Notes</span>
-                        <span className="text-xs text-gray-500">{getTaskNotes(task.id).length} notes</span>
+                        <span className="text-xs text-gray-500">{getTaskNotesForDisplay(task._id).length} notes</span>
                       </div>
-                      {getTaskNotes(task.id).slice(0, 2).map(note => (
-                        <div key={note.id} className="flex items-start space-x-2 mb-2 last:mb-0">
+                      {getTaskNotesForDisplay(task._id).slice(0, 2).map(note => (
+                        <div key={note._id} className="flex items-start space-x-2 mb-2 last:mb-0">
                           <span className="text-gray-400">{getNoteTypeIcon(note.type)}</span>
                           <div className="flex-1">
                             <p className="text-xs text-gray-600 line-clamp-2">{note.content}</p>
-                            <p className="text-xs text-gray-400">{note.createdAt}</p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(note.createdAt).toLocaleDateString()}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -683,8 +713,8 @@ const CollectorTasks = () => {
                   <div className="flex items-center justify-between pt-4 border-t border-blue-100">
                     <div className="flex items-center space-x-2">
                       <select 
-                        value={task.status}
-                        onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                        value={task.status || 'pending'}
+                        onChange={(e) => updateTaskStatus(task._id, e.target.value)}
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-sm"
                       >
                         <option value="pending">Pending</option>
@@ -702,7 +732,7 @@ const CollectorTasks = () => {
                     </div>
                     
                     <button 
-                      onClick={() => navigate(`/collector/tasks/${task.id}`)}
+                      onClick={() => handleShowDetails(task)}
                       className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2"
                     >
                       <span>👁️</span>
@@ -861,7 +891,7 @@ const CollectorTasks = () => {
                 >
                   <option value="">Select a customer (optional)</option>
                   {customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>
+                    <option key={customer._id} value={customer._id}>
                       {customer.name} - {customer.accountNumber} (${customer.balance})
                     </option>
                   ))}
@@ -948,7 +978,7 @@ const CollectorTasks = () => {
       )}
 
       {/* Add Note Modal */}
-      {showNoteForm && selectedTask && (
+      {showNoteModal && selectedTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
@@ -959,7 +989,7 @@ const CollectorTasks = () => {
                 </div>
                 <button 
                   onClick={() => {
-                    setShowNoteForm(false);
+                    setShowNoteModal(false);
                     setSelectedTask(null);
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-lg"
@@ -969,7 +999,7 @@ const CollectorTasks = () => {
               </div>
             </div>
             
-            <form onSubmit={handleNoteFormSubmit} className="p-6 space-y-6">
+            <div className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Note Type
@@ -1002,59 +1032,17 @@ const CollectorTasks = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Attach Document (Optional)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
-                  <input
-                    type="file"
-                    id="note-file-upload"
-                    onChange={(e) => handleFileUpload(e, 'note')}
-                    className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  />
-                  <label htmlFor="note-file-upload" className="cursor-pointer block">
-                    {noteForm.attachment ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-center space-x-2 text-green-600">
-                          <span className="text-2xl">✅</span>
-                        </div>
-                        <p className="text-sm font-medium">{noteForm.attachment.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {(noteForm.attachment.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                        <button 
-                          type="button"
-                          onClick={() => setNoteForm(prev => ({ ...prev, attachment: null }))}
-                          className="text-red-600 text-sm hover:text-red-800"
-                        >
-                          Remove file
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <span className="text-3xl">📎</span>
-                        <p className="text-sm text-gray-600">Click to upload supporting documents</p>
-                        <p className="text-xs text-gray-500">PDF, JPG, PNG, DOC up to 5MB</p>
-                      </div>
-                    )}
-                  </label>
-                </div>
-              </div>
-
               <div className="flex space-x-3 pt-6 border-t border-gray-200">
                 <button 
-                  type="submit"
+                  onClick={() => handleNoteFormSubmit(selectedTask._id)}
                   className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2"
                 >
                   <span>💾</span>
                   <span>Save Note</span>
                 </button>
                 <button 
-                  type="button"
                   onClick={() => {
-                    setShowNoteForm(false);
+                    setShowNoteModal(false);
                     setSelectedTask(null);
                   }}
                   className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 px-4 rounded-xl font-semibold transition-all duration-200"
@@ -1062,10 +1050,302 @@ const CollectorTasks = () => {
                   Cancel
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Task Details Modal */}
+      {showDetailsModal && detailsTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+              <div className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-2xl">{getTypeIcon(detailsTask.type)}</span>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">{detailsTask.title}</h2>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className={getPriorityStyles(detailsTask.priority)}>
+                          {detailsTask.priority?.toUpperCase()} PRIORITY
+                        </span>
+                        <span className={getStatusStyles(detailsTask.status)}>
+                          {detailsTask.status?.replace('-', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowDetailsModal(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <span className="text-2xl">×</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Content */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Description Card */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                    <h3 className="font-bold text-gray-900 text-lg mb-3">📋 Description</h3>
+                    <p className="text-gray-700 leading-relaxed">{detailsTask.description}</p>
+                    
+                    {detailsTask.notes && (
+                      <div className="mt-4 pt-4 border-t border-blue-200">
+                        <h4 className="font-medium text-gray-700 mb-2">Initial Notes</h4>
+                        <p className="text-gray-600 italic bg-white p-3 rounded-lg">"{detailsTask.notes}"</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Location & Customers Card */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                    <h3 className="font-bold text-gray-900 text-lg mb-4">📍 Location & Customers</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-2">Location</h4>
+                        <p className="text-gray-600">{detailsTask.location || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-2">Customers</h4>
+                        {detailsTask.customerIds && detailsTask.customerIds.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {detailsTask.customerIds.map((customerId, index) => (
+                              <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm">
+                                Customer #{index + 1}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500">No customers assigned</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notes Section */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-bold text-gray-900 text-lg">💬 Notes & Updates</h3>
+                      <span className="text-sm text-gray-500">
+                        {getTaskNotesForDisplay(detailsTask._id).length} notes
+                      </span>
+                    </div>
+
+                    {/* Add Note Form */}
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                      <textarea
+                        value={noteForm.content}
+                        onChange={(e) => setNoteForm({...noteForm, content: e.target.value})}
+                        rows="2"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none mb-3 bg-white"
+                        placeholder="Add a note..."
+                      />
+                      <div className="flex items-center justify-between">
+                        <select
+                          value={noteForm.type}
+                          onChange={(e) => setNoteForm({...noteForm, type: e.target.value})}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-sm"
+                        >
+                          <option value="general">📝 General Note</option>
+                          <option value="call_record">📞 Call Record</option>
+                          <option value="visit_log">📍 Visit Log</option>
+                        </select>
+                        <button 
+                          onClick={() => handleNoteFormSubmit(detailsTask._id)}
+                          disabled={!noteForm.content.trim()}
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
+                        >
+                          Add Note
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Notes List */}
+                    {getTaskNotesForDisplay(detailsTask._id).length > 0 ? (
+                      <div className="space-y-4">
+                        {getTaskNotesForDisplay(detailsTask._id).map(note => (
+                          <div key={note._id} className="p-4 border border-gray-200 rounded-lg hover:border-blue-200 transition-colors">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                                  <span className="text-gray-600">{getNoteTypeIcon(note.type)}</span>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900">{note.collectorName}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(note.createdAt).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => deleteNote(note._id)}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                            <p className="text-gray-700">{note.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        No notes yet. Add the first note!
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sidebar */}
+                <div className="space-y-6">
+                  {/* Status Card */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                    <h3 className="font-bold text-gray-900 text-lg mb-4">📊 Status & Actions</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Update Status
+                        </label>
+                        <select 
+                          value={detailsTask.status || 'pending'}
+                          onChange={(e) => updateTaskStatus(detailsTask._id, e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      </div>
+                      <div>
+                        <button 
+                          onClick={() => {
+                            setShowDetailsModal(false);
+                            openNoteForm(detailsTask);
+                          }}
+                          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200"
+                        >
+                          📝 Add Note
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timeline Card */}
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
+                    <h3 className="font-bold text-gray-900 text-lg mb-4">⏰ Timeline</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Created</p>
+                        <p className="font-medium text-gray-900">{formatDate(detailsTask.createdAt)}</p>
+                      </div>
+                      {detailsTask.scheduledDate && (
+                        <div>
+                          <p className="text-sm text-gray-600">Scheduled</p>
+                          <p className="font-medium text-gray-900">{formatDate(detailsTask.scheduledDate)}</p>
+                        </div>
+                      )}
+                      {detailsTask.dueDate && (
+                        <div>
+                          <p className="text-sm text-gray-600">Due Date</p>
+                          <div className="flex items-center">
+                            <p className={`font-medium ${
+                              isOverdue(detailsTask.dueDate) && detailsTask.status !== 'completed' 
+                                ? 'text-red-600' 
+                                : 'text-gray-900'
+                            }`}>
+                              {formatDate(detailsTask.dueDate)}
+                            </p>
+                            {isOverdue(detailsTask.dueDate) && detailsTask.status !== 'completed' && (
+                              <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                                OVERDUE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {detailsTask.updatedAt && (
+                        <div>
+                          <p className="text-sm text-gray-600">Last Updated</p>
+                          <p className="font-medium text-gray-900">{formatDate(detailsTask.updatedAt)}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Task Info Card */}
+                  <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-200">
+                    <h3 className="font-bold text-gray-900 text-lg mb-4">📄 Task Info</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm text-gray-600">Task ID</p>
+                        <p className="font-mono text-sm text-gray-900 truncate">{detailsTask._id}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Type</p>
+                        <p className="font-medium text-gray-900 capitalize">{detailsTask.type}</p>
+                      </div>
+                      {detailsTask.assignedBy && (
+                        <div>
+                          <p className="text-sm text-gray-600">Assigned By</p>
+                          <p className="font-medium text-gray-900">{detailsTask.assignedBy?.name || 'System'}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6">
+              <div className="flex justify-end space-x-3">
+                <button 
+                  onClick={() => setShowDetailsModal(false)}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    openNoteForm(detailsTask);
+                  }}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all"
+                >
+                  Add Note
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add CSS for animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
     </CollectorLayout>
   );
 };
