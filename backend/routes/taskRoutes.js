@@ -1,35 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const {
+const { 
   createTask,
-  getTasks,
+  getCollectorTasks,
   getTask,
-  updateTask,
-  deleteTask
+  updateTaskStatus,
+  addTaskNote,
+  getTaskNotes,
+  deleteNote,
+  getCollectorCustomers
 } = require('../controllers/taskController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
-// ------------------ Task Routes ------------------
+// All routes require authentication
+router.use(protect);
 
-// Create a task (protected)
-router.post('/', protect, createTask);
-
-// Get all tasks (protected)
-router.get('/', protect, getTasks);
-
-// Get a single task by ID (protected)
-router.get('/:id', protect, getTask);
-
-// Update a task by ID (protected)
-router.put('/:id', protect, updateTask);
-
-// Delete a task by ID (protected)
-router.delete('/:id', protect, deleteTask);
-
-// ------------------ Catch-all 404 ------------------
-// This replaces the '*' route
-router.all(/.*/,(req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
+// Collector-specific routes
+router.get('/collector', authorize('collector'), getCollectorTasks);
+router.post('/collector', authorize('collector'), createTask);
+router.get('/collector/customers', authorize('collector'), getCollectorCustomers);
+router.get('/collector/:id', authorize('collector'), getTask);
+router.put('/collector/:id/status', authorize('collector'), updateTaskStatus);
+router.post('/collector/:id/notes', authorize('collector'), addTaskNote);
+router.get('/collector/:id/notes', authorize('collector'), getTaskNotes);
+router.delete('/collector/notes/:noteId', authorize('collector'), deleteNote);
 
 module.exports = router;
