@@ -76,19 +76,34 @@ class ErrorBoundary extends React.Component {
 
 /* ========== ROUTER ========== */
 const AppRouter = () => {
-  const { user } = useAuth();
-
+  /* ===== Protected Route ===== */
   /* ===== Protected Route ===== */
   const ProtectedRoute = ({ children, allowedRoles }) => {
+    const { user, loading } = useAuth(); // ✅ Get auth state here
+
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      );
+    }
+
     if (!user) return <Navigate to="/auth/login" replace />;
+
     if (allowedRoles && !allowedRoles.includes(user.role)) {
       return <Navigate to="/unauthorized" replace />;
     }
+
     return children;
   };
 
   /* ===== Public Route (login/register only) ===== */
   const PublicRoute = ({ children }) => {
+    const { user, loading } = useAuth(); // ✅ THIS WAS MISSING
+
+    if (loading) return null; // or <Spinner />
+
     if (!user) return children;
 
     switch (user.role) {
@@ -98,7 +113,7 @@ const AppRouter = () => {
         return <Navigate to="/staff/dashboard" replace />;
       case "collector":
         return <Navigate to="/collector/dashboard" replace />;
-      case "departmentHead":
+      case "department_head": // ✅ Correct - matches backend
         return <Navigate to="/department-head/dashboard" replace />;
       default:
         return <Navigate to="/" replace />;
@@ -108,7 +123,6 @@ const AppRouter = () => {
   return (
     <ErrorBoundary>
       <Routes>
-
         {/* ===== HOME PAGE (DEFAULT) ===== */}
         <Route path="/" element={<ModernHomePage />} />
 
@@ -128,11 +142,28 @@ const AppRouter = () => {
         </Route>
 
         {/* ===== PUBLIC AUTH ===== */}
-        <Route path="/public/login" element={<PublicRoute><PublicLogin /></PublicRoute>} />
-        <Route path="/public/register" element={<PublicRoute><PublicRegister /></PublicRoute>} />
+        <Route
+          path="/public/login"
+          element={
+            <PublicRoute>
+              <PublicLogin />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/public/register"
+          element={
+            <PublicRoute>
+              <PublicRegister />
+            </PublicRoute>
+          }
+        />
 
         {/* ===== PUBLIC REPORT (NO LOGIN) ===== */}
-        <Route path="/public/report-problem" element={<PublicReportProblem />} />
+        <Route
+          path="/public/report-problem"
+          element={<PublicReportProblem />}
+        />
 
         {/* ===== MAIN PROTECTED LAYOUT ===== */}
         <Route
@@ -145,18 +176,36 @@ const AppRouter = () => {
         >
           {/* ---- Collector ---- */}
           <Route path="collector/dashboard" element={<CollectorDashboard />} />
-          <Route path="collector/department" element={<CollectorDepartments />} />
+          <Route
+            path="collector/department"
+            element={<CollectorDepartments />}
+          />
           <Route path="collector/tasks" element={<CollectorTasks />} />
           <Route path="collector/profile" element={<CollectorProfile />} />
-          <Route path="collector/notifications" element={<CollectorNotifications />} />
+          <Route
+            path="collector/notifications"
+            element={<CollectorNotifications />}
+          />
           <Route path="collector/reports" element={<CollectorReports />} />
           <Route path="collector/users" element={<CollectorUsers />} />
 
           {/* ---- Department Head ---- */}
-          <Route path="department-head/dashboard" element={<DepartmentHeadDashboard />} />
-          <Route path="department-head/profile" element={<DepartmentHeadProfile />} />
-          <Route path="department-head/notifications" element={<DepartmentHeadNotifications />} />
-          <Route path="department-head/reports" element={<DepartmentReports />} />
+          <Route
+            path="department-head/dashboard"
+            element={<DepartmentHeadDashboard />}
+          />
+          <Route
+            path="department-head/profile"
+            element={<DepartmentHeadProfile />}
+          />
+          <Route
+            path="department-head/notifications"
+            element={<DepartmentHeadNotifications />}
+          />
+          <Route
+            path="department-head/reports"
+            element={<DepartmentReports />}
+          />
           <Route path="department-head/staff" element={<DepartmentStaff />} />
 
           {/* ---- Staff ---- */}
@@ -177,7 +226,6 @@ const AppRouter = () => {
 
         {/* ===== FALLBACK ===== */}
         <Route path="*" element={<Navigate to="/" replace />} />
-
       </Routes>
     </ErrorBoundary>
   );
