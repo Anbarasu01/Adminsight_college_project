@@ -1,27 +1,28 @@
+// routes/notificationRoutes.js
 const express = require('express');
 const router = express.Router();
-const {
-  createNotification,
-  getAllNotifications,
-  getUserNotifications,
-  markAsRead,
-  deleteNotification,
-  getDepartmentNotifications // Add this import
-} = require('../controllers/notificationController');
+const notificationController = require('../controllers/notificationController');
+const { protect, authorize } = require('../middleware/authMiddleware'); // Destructure
 
-// Routes for notifications
-router.post('/', createNotification); // Create a new notification
-router.get('/all', getAllNotifications); // Get all notifications (Admin)
-router.get('/user/:userId', getUserNotifications); // Get user-specific notifications
-router.put('/:id/read', markAsRead); // Mark notification as read
-router.delete('/:id', deleteNotification); // Delete a notification
+// All routes require authentication - USE 'protect' not 'auth'
+router.use(protect); // This is the middleware function
 
-// ✅ NEW: Get department notifications
-router.get('/departments', getDepartmentNotifications); // Get department notifications
-router.get('/departments/:department', getDepartmentNotifications); // Get specific department notifications
+// Get notifications with optional filters
+router.get('/', notificationController.getNotifications);
 
-router.all(/.*/, (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
+// Get notification stats
+router.get('/stats', notificationController.getStats);
+
+// Mark single notification as read
+router.patch('/:id/read', notificationController.markAsRead);
+
+// Mark all notifications as read
+router.patch('/read-all', notificationController.markAllAsRead);
+
+// Archive notification
+router.patch('/:id/archive', notificationController.archive);
+
+// Create notification (admin/internal) - Add authorization if needed
+router.post('/', authorize('admin', 'staff'), notificationController.createNotification);
 
 module.exports = router;
