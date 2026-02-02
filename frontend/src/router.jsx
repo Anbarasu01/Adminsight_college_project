@@ -34,11 +34,13 @@ import CollectorReports from "./pages/collector/CollectorReports.jsx";
 import CollectorUsers from "./pages/collector/CollectorUsers.jsx";
 
 /* ========== DEPARTMENT HEAD ========== */
+import DepartmentHeadLayout from "./layouts/DepartmentHeadLayout";
+
 import DepartmentHeadDashboard from "./pages/department-head/DepartmentHeadDashboard.jsx";
-import DepartmentHeadProfile from "./pages/department-head/DepartmentHeadProfile.jsx";
-import DepartmentHeadNotifications from "./pages/department-head/DepartmentHeadNotifications.jsx";
 import DepartmentReports from "./pages/department-head/DepartmentReports.jsx";
 import DepartmentStaff from "./pages/department-head/DepartmentStaff.jsx";
+import DepartmentHeadNotifications from "./pages/department-head/DepartmentHeadNotifications.jsx";
+import DepartmentHeadProfile from "./pages/department-head/DepartmentHeadProfile.jsx";
 
 /* ========== STAFF ========== */
 import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
@@ -190,23 +192,16 @@ const AppRouter = () => {
           <Route path="collector/users" element={<CollectorUsers />} />
 
           {/* ---- Department Head ---- */}
-          <Route
-            path="department-head/dashboard"
-            element={<DepartmentHeadDashboard />}
-          />
-          <Route
-            path="department-head/profile"
-            element={<DepartmentHeadProfile />}
-          />
-          <Route
-            path="department-head/notifications"
-            element={<DepartmentHeadNotifications />}
-          />
-          <Route
-            path="department-head/reports"
-            element={<DepartmentReports />}
-          />
-          <Route path="department-head/staff" element={<DepartmentStaff />} />
+          <Route path="/department-head" element={<DepartmentHeadLayout />}>
+            <Route path="dashboard" element={<DepartmentHeadDashboard />} />
+            <Route path="reports" element={<DepartmentReports />} />
+            <Route path="staff" element={<DepartmentStaff />} />
+            <Route
+              path="notifications"
+              element={<DepartmentHeadNotifications />}
+            />
+            <Route path="profile" element={<DepartmentHeadProfile />} />
+          </Route>
 
           {/* ---- Staff ---- */}
           <Route path="staff/dashboard" element={<StaffDashboard />} />

@@ -626,3 +626,4 @@ const CollectorNotifications = () => {
 };
 
 export default CollectorNotifications;
+

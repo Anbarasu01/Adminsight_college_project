@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
 
 const DepartmentHeadDashboard = () => {
@@ -13,7 +14,12 @@ const DepartmentHeadDashboard = () => {
   });
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProblems, setSelectedProblems] = useState([]);
+  const [batchName, setBatchName] = useState("");
+  const [showBatchModal, setShowBatchModal] = useState(false);
   const department = localStorage.getItem("department");
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProblems();
@@ -76,6 +82,113 @@ const DepartmentHeadDashboard = () => {
     setFilter(newFilter);
   };
 
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleProblemSelect = (problemId) => {
+    setSelectedProblems(prev => 
+      prev.includes(problemId) 
+        ? prev.filter(id => id !== problemId)
+        : [...prev, problemId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProblems.length === filteredProblems.length) {
+      setSelectedProblems([]);
+    } else {
+      setSelectedProblems(filteredProblems.map(p => p._id));
+    }
+  };
+
+  const handleBatchProblems = async () => {
+    if (selectedProblems.length === 0) {
+      alert('Please select at least one problem to batch');
+      return;
+    }
+    
+    try {
+      setRefreshing(true);
+      await api.post('/problems/batch', {
+        problemIds: selectedProblems,
+        batchName: batchName || `Batch ${new Date().toLocaleDateString()}`,
+        department: department
+      });
+      
+      // Update status of batched problems
+      await Promise.all(
+        selectedProblems.map(id => 
+          api.put(`/problems/${id}/status`, { status: 'Batched' })
+        )
+      );
+      
+      alert(`Successfully batched ${selectedProblems.length} problem(s)!`);
+      setSelectedProblems([]);
+      setBatchName("");
+      setShowBatchModal(false);
+      await fetchProblems(); // Refresh data
+      
+    } catch (error) {
+      console.error(error);
+      alert('Failed to batch problems');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleDeleteProblem = async (id) => {
+    if (window.confirm('Are you sure you want to delete this problem?')) {
+      try {
+        setRefreshing(true);
+        await api.delete(`/problems/${id}`);
+        setProblems(prev => prev.filter(p => p._id !== id));
+        setSelectedProblems(prev => prev.filter(pid => pid !== id));
+        alert('Problem deleted successfully');
+      } catch (error) {
+        console.error(error);
+        alert('Failed to delete problem');
+      } finally {
+        setRefreshing(false);
+      }
+    }
+  };
+
+  const handleExportProblems = () => {
+    const dataToExport = filteredProblems.map(problem => ({
+      Title: problem.title,
+      Description: problem.description,
+      Status: problem.status,
+      Priority: problem.priority,
+      Location: problem.location,
+      Reporter: problem.reporter,
+      'Reported Date': formatDate(problem.createdAt),
+      Department: department
+    }));
+    
+    const csv = convertToCSV(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${department}_problems_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const convertToCSV = (data) => {
+    if (data.length === 0) return '';
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => 
+      Object.values(row).map(value => 
+        `"${String(value).replace(/"/g, '""')}"`
+      ).join(',')
+    );
+    return [headers, ...rows].join('\n');
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending': 
@@ -131,9 +244,29 @@ const DepartmentHeadDashboard = () => {
     }
   };
 
+  const getPriorityStats = () => {
+    const high = problems.filter(p => p.priority === 'high').length;
+    const medium = problems.filter(p => p.priority === 'medium').length;
+    const low = problems.filter(p => p.priority === 'low').length;
+    return { high, medium, low };
+  };
+
   const filteredProblems = problems.filter(problem => {
-    if (filter === 'all') return true;
-    return problem.status === filter;
+    // Apply status filter
+    if (filter !== 'all' && problem.status !== filter) return false;
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        problem.title.toLowerCase().includes(searchLower) ||
+        problem.description.toLowerCase().includes(searchLower) ||
+        (problem.location && problem.location.toLowerCase().includes(searchLower)) ||
+        (problem.reporter && problem.reporter.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    return true;
   });
 
   const formatDate = (dateString) => {
@@ -229,6 +362,135 @@ const DepartmentHeadDashboard = () => {
             <p className="text-xs text-purple-600 font-medium">Grouped for processing</p>
           </div>
         </div>
+      </div>
+
+      {/* Priority Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-2xl shadow-lg border-l-4 border-red-500 p-6 hover:shadow-xl transition-shadow duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">High Priority</p>
+              <p className="text-3xl font-bold text-red-600">{getPriorityStats().high}</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-pink-100 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.768 0L4.282 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-2xl shadow-lg border-l-4 border-yellow-500 p-6 hover:shadow-xl transition-shadow duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Medium Priority</p>
+              <p className="text-3xl font-bold text-yellow-600">{getPriorityStats().medium}</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-2xl shadow-lg border-l-4 border-green-500 p-6 hover:shadow-xl transition-shadow duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Low Priority</p>
+              <p className="text-3xl font-bold text-green-600">{getPriorityStats().low}</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Batch Controls */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Search Bar */}
+          <div className="flex-1">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={handleSearch}
+                placeholder="Search problems by title, description, location, or reporter..."
+                className="w-full px-4 py-3 pl-12 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <svg 
+                className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowBatchModal(true)}
+              disabled={selectedProblems.length === 0}
+              className={`px-5 py-3 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 ${
+                selectedProblems.length > 0
+                  ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-md hover:shadow-lg'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Batch ({selectedProblems.length})
+            </button>
+            
+            <button
+              onClick={handleExportProblems}
+              disabled={filteredProblems.length === 0}
+              className={`px-5 py-3 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 ${
+                filteredProblems.length > 0
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export CSV
+            </button>
+          </div>
+        </div>
+        
+        {/* Selection Info */}
+        {selectedProblems.length > 0 && (
+          <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="font-medium text-blue-800">
+                  {selectedProblems.length} problem(s) selected
+                </span>
+                <button
+                  onClick={handleSelectAll}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  {selectedProblems.length === filteredProblems.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+              <button
+                onClick={() => setSelectedProblems([])}
+                className="text-sm text-red-600 hover:text-red-800 font-medium"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filter & Controls Section */}
@@ -329,6 +591,35 @@ const DepartmentHeadDashboard = () => {
         </div>
       </div>
 
+      {/* Quick Status Update Section */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Status Update</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {statusOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                if (selectedProblems.length > 0) {
+                  if (window.confirm(`Update ${selectedProblems.length} problem(s) to ${option.label}?`)) {
+                    selectedProblems.forEach(id => updateStatus(id, option.value));
+                  }
+                }
+              }}
+              disabled={selectedProblems.length === 0}
+              className={`p-4 rounded-xl border-2 transition-all duration-200 flex flex-col items-center justify-center ${
+                selectedProblems.length > 0
+                  ? `hover:scale-105 cursor-pointer ${getStatusColor(option.value)}`
+                  : 'opacity-50 cursor-not-allowed bg-gray-100'
+              }`}
+            >
+              <span className="text-2xl mb-2">{option.icon}</span>
+              <span className="font-medium text-sm">{option.label}</span>
+              <span className="text-xs mt-1 opacity-75">Bulk update</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Problems List */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16">
@@ -354,7 +645,9 @@ const DepartmentHeadDashboard = () => {
           <p className="text-gray-600 max-w-md mx-auto mb-8">
             {filter === 'all' 
               ? `There are currently no problems reported for ${department} department.` 
-              : `No problems found with status "${filter}" in ${department} department.`
+              : searchTerm 
+                ? `No problems found matching "${searchTerm}" with status "${filter}" in ${department} department.`
+                : `No problems found with status "${filter}" in ${department} department.`
             }
           </p>
           <button
@@ -372,8 +665,13 @@ const DepartmentHeadDashboard = () => {
           {filteredProblems.map((problem) => (
             <div key={problem._id} className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden group">
               <div className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                  {/* Problem Details */}
+                <div className="flex items-start gap-4 mb-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedProblems.includes(problem._id)}
+                    onChange={() => handleProblemSelect(problem._id)}
+                    className="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -391,8 +689,22 @@ const DepartmentHeadDashboard = () => {
                           {problem.description}
                         </p>
                       </div>
+                      <button
+                        onClick={() => handleDeleteProblem(problem._id)}
+                        className="ml-2 text-gray-400 hover:text-red-600 transition-colors p-2"
+                        title="Delete Problem"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
+                  </div>
+                </div>
 
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                  {/* Problem Details */}
+                  <div className="flex-1">
                     {/* Problem Metadata */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       {/* Status */}
@@ -488,6 +800,61 @@ const DepartmentHeadDashboard = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Batch Modal */}
+      {showBatchModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Create Batch</h3>
+              <button
+                onClick={() => setShowBatchModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Batch Name
+              </label>
+              <input
+                type="text"
+                value={batchName}
+                onChange={(e) => setBatchName(e.target.value)}
+                placeholder="Enter batch name (optional)"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div className="mb-6 p-4 bg-purple-50 rounded-xl">
+              <p className="text-sm text-purple-800">
+                <span className="font-bold">{selectedProblems.length}</span> problem(s) will be grouped into a batch.
+                This helps in tracking related issues together.
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBatchModal(false)}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBatchProblems}
+                disabled={refreshing}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+              >
+                {refreshing ? 'Creating Batch...' : 'Create Batch'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
