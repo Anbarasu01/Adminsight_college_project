@@ -18,6 +18,8 @@ const reportRoutes = require('./routes/reportRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const collectorRoutes = require('./routes/collectorRoutes');
 
+const problemRoutes = require("./routes/problemRoutes");
+
 const app = express();
 
 // Connect to MongoDB
@@ -111,6 +113,8 @@ app.use('/api/departments', deptRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/collector', collectorRoutes);
+
+app.use("/api/problems", problemRoutes);
 
 // Home route
 app.get('/', (req, res) => {

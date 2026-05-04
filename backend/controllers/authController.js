@@ -30,40 +30,69 @@ const createSendToken = (user, statusCode, res, message) => {
 // Registration
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, role, phone, department_id, managesDepartment } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      phone,
+      department_id,
+      managesDepartment,
+    } = req.body;
 
     if (!name || !email || !password || !role) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing required fields" });
     }
 
-    const validRoles = ['public', 'collector', 'department_head', 'staff'];
+    const validRoles = ["public", "collector", "department_head", "staff"];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ success: false, message: `Invalid role` });
     }
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      return res.status(409).json({ success: false, message: 'Email already exists' });
+      return res
+        .status(409)
+        .json({ success: false, message: "Email already exists" });
     }
 
     // Role-specific validations - UPDATED
-    if (role === 'department_head' && !managesDepartment) {
-      return res.status(400).json({ success: false, message: 'Department head must have managesDepartment' });
+    if (role === "department_head" && !managesDepartment) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Department head must have managesDepartment",
+        });
     }
-    if (role === 'staff' && !department_id) {
-      return res.status(400).json({ success: false, message: 'staff must be assigned to a department' });
+    if (role === "staff" && !department_id) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "staff must be assigned to a department",
+        });
     }
     // Note: collectors no longer require department_id
 
     // Generate unique role-based ID
-    const datePrefix = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const count = await User.countDocuments({ role, createdAt: { $gte: new Date().setHours(0,0,0,0) } }) + 1;
+    const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const count =
+      (await User.countDocuments({
+        role,
+        createdAt: { $gte: new Date().setHours(0, 0, 0, 0) },
+      })) + 1;
 
     let uniqueId;
-    if (role === 'collector') uniqueId = `COL-${datePrefix}-${count.toString().padStart(3,'0')}`;
-    else if (role === 'department_head') uniqueId = `HEAD-${datePrefix}-${count.toString().padStart(3,'0')}`;
-    else if (role === 'staff') uniqueId = `STF-${datePrefix}-${count.toString().padStart(3,'0')}`;
-    else uniqueId = `PUB-${datePrefix}-${count.toString().padStart(3,'0')}`;
+    if (role === "collector")
+      uniqueId = `COL-${datePrefix}-${count.toString().padStart(3, "0")}`;
+    else if (role === "department_head")
+      uniqueId = `HEAD-${datePrefix}-${count.toString().padStart(3, "0")}`;
+    else if (role === "staff")
+      uniqueId = `STF-${datePrefix}-${count.toString().padStart(3, "0")}`;
+    else uniqueId = `PUB-${datePrefix}-${count.toString().padStart(3, "0")}`;
 
     // Create user WITHOUT manually hashing password (pre-save hook handles it)
     const newUser = await User.create({
@@ -73,28 +102,33 @@ const registerUser = async (req, res, next) => {
       role,
       phone: phone?.trim() || null,
       // Only add department_id for staff role
-      department_id: role === 'staff' && department_id 
-                     ? new mongoose.Types.ObjectId(department_id) 
-                     : null,
+      department_id:
+        role === "staff" && department_id
+          ? new mongoose.Types.ObjectId(department_id)
+          : null,
       // Only add managesDepartment for department_head role
-      managesDepartment: role === 'department_head' && managesDepartment
-                          ? new mongoose.Types.ObjectId(managesDepartment)
-                          : null,
-      uniqueId
+      managesDepartment:
+        role === "department_head" && managesDepartment
+          ? new mongoose.Types.ObjectId(managesDepartment)
+          : null,
+      uniqueId,
     });
 
-    createSendToken(newUser, 201, res, 'User registered successfully');
-
+    createSendToken(newUser, 201, res, "User registered successfully");
   } catch (error) {
-    console.error('❌ Registration Error:', error);
+    console.error("❌ Registration Error:", error);
 
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
+      return res
+        .status(400)
+        .json({ success: false, message: "Validation failed", errors });
     }
 
     if (error.code === 11000) {
-      return res.status(409).json({ success: false, message: 'Email already exists' });
+      return res
+        .status(409)
+        .json({ success: false, message: "Email already exists" });
     }
 
     next(error);
@@ -102,38 +136,39 @@ const registerUser = async (req, res, next) => {
 };
 
 // Login
-const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
+const login = async (req, res) => {
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Please provide email and password" });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() }).select(
-      "+password"
-    );
-
-    if (!user) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid email or password" });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid email or password" });
-    }
-
-    createSendToken(user, 200, res, "Login successful");
-  } catch (error) {
-    console.error("❌ Login Error:", error);
-    next(error);
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(401).json({ message: "Invalid email" });
   }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return res.status(401).json({ message: "Invalid password" });
+  }
+
+  const token = jwt.sign(
+    {
+      id: user._id,
+      role: user.role,
+      departmentId: user.managesDepartment, // ✅ IMPORTANT
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  res.json({
+    success: true,
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      role: user.role,
+      departmentId: user.managesDepartment, // ✅ SEND THIS
+    },
+  });
 };
 
 // ✅ Get Current User Profile (Authentication Context)
@@ -176,7 +211,7 @@ const updateProfile = async (req, res, next) => {
         name: name || req.user.name,
         phone: phone || req.user.phone,
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .select("-password")
       .populate("department_id", "name code")
