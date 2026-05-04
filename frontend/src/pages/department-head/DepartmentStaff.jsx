@@ -186,7 +186,7 @@ const DepartmentStaff = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {staff.map(member => (
-              <div key={member.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-300 overflow-hidden">
+              <div key={member._id} className="bg-white rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-300 overflow-hidden">
                 <div className="p-6">
                   {/* Staff Header */}
                   <div className="flex items-center space-x-4 mb-4">

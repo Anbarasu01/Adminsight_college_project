@@ -10,9 +10,9 @@ const DepartmentHeadDashboard = () => {
     pending: 0,
     inProgress: 0,
     resolved: 0,
-    batched: 0
+    batched: 0,
   });
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProblems, setSelectedProblems] = useState([]);
@@ -22,61 +22,99 @@ const DepartmentHeadDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchProblems();
+    if (department) {
+      fetchProblems();
+    } else {
+      console.error("No department found in localStorage");
+      // Maybe redirect to login or show error
+    }
   }, [department]);
 
   const fetchProblems = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/problems/department/${department}`);
-      setProblems(res.data);
-      calculateStats(res.data);
+      // Add encodeURIComponent to handle spaces in department names
+      const res = await api.get(
+        `/problems/department/${encodeURIComponent(department)}`,
+      );
+
+      // Extract the problems array from the response
+      // Handle both possible response structures
+      let problemsArray = [];
+
+      if (Array.isArray(res.data)) {
+        // If response is directly an array
+        problemsArray = res.data;
+      } else if (res.data && Array.isArray(res.data.data)) {
+        // If response has data property that's an array
+        problemsArray = res.data.data;
+      } else if (res.data && res.data.problems) {
+        // If response has problems property
+        problemsArray = res.data.problems;
+      }
+
+      console.log("Fetched problems:", problemsArray);
+      setProblems(problemsArray);
+      calculateStats(problemsArray);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching problems:", err);
+      setProblems([]);
+      // Reset stats on error
+      setStats({
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        resolved: 0,
+        batched: 0,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const calculateStats = (problemsData) => {
-    const stats = {
-      total: problemsData.length,
-      pending: problemsData.filter(p => p.status === 'Pending').length,
-      inProgress: problemsData.filter(p => p.status === 'In Progress').length,
-      resolved: problemsData.filter(p => p.status === 'Resolved').length,
-      batched: problemsData.filter(p => p.status === 'Batched').length
+    // Ensure we're working with an array
+    const data = Array.isArray(problemsData) ? problemsData : [];
+
+    const newStats = {
+      total: data.length,
+      pending: data.filter((p) => p.status === "Pending").length,
+      inProgress: data.filter((p) => p.status === "In Progress").length,
+      resolved: data.filter((p) => p.status === "Resolved").length,
+      batched: data.filter((p) => p.status === "Batched").length,
     };
-    setStats(stats);
+
+    console.log("Calculated stats:", newStats); // Debug log
+    setStats(newStats);
   };
 
   const updateStatus = async (id, status) => {
     try {
       setRefreshing(true);
       await api.put(`/problems/${id}/status`, { status });
-      
+
       // Update local state immediately for better UX
-      setProblems(prev => prev.map(p => 
-        p._id === id ? { ...p, status } : p
-      ));
-      
+      setProblems((prev) =>
+        prev.map((p) => (p._id === id ? { ...p, status } : p)),
+      );
+
       // Recalculate stats
-      calculateStats(problems.map(p => p._id === id ? { ...p, status } : p));
-      
+      calculateStats(
+        problems.map((p) => (p._id === id ? { ...p, status } : p)),
+      );
     } catch (error) {
       console.error(error);
-      alert('Failed to update status');
+      alert("Failed to update status");
     } finally {
       setRefreshing(false);
     }
   };
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchProblems();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 500);
-  };
+  setRefreshing(true);
+  await fetchProblems();
+  setRefreshing(false);
+};
 
   const handleFilterChange = (newFilter) => {
     setFilter(newFilter);
@@ -87,10 +125,10 @@ const DepartmentHeadDashboard = () => {
   };
 
   const handleProblemSelect = (problemId) => {
-    setSelectedProblems(prev => 
-      prev.includes(problemId) 
-        ? prev.filter(id => id !== problemId)
-        : [...prev, problemId]
+    setSelectedProblems((prev) =>
+      prev.includes(problemId)
+        ? prev.filter((id) => id !== problemId)
+        : [...prev, problemId],
     );
   };
 
@@ -98,56 +136,55 @@ const DepartmentHeadDashboard = () => {
     if (selectedProblems.length === filteredProblems.length) {
       setSelectedProblems([]);
     } else {
-      setSelectedProblems(filteredProblems.map(p => p._id));
+      setSelectedProblems(filteredProblems.map((p) => p._id));
     }
   };
 
   const handleBatchProblems = async () => {
     if (selectedProblems.length === 0) {
-      alert('Please select at least one problem to batch');
+      alert("Please select at least one problem to batch");
       return;
     }
-    
+
     try {
       setRefreshing(true);
-      await api.post('/problems/batch', {
+      await api.post("/problems/batch", {
         problemIds: selectedProblems,
         batchName: batchName || `Batch ${new Date().toLocaleDateString()}`,
-        department: department
+        department: department,
       });
-      
+
       // Update status of batched problems
       await Promise.all(
-        selectedProblems.map(id => 
-          api.put(`/problems/${id}/status`, { status: 'Batched' })
-        )
+        selectedProblems.map((id) =>
+          api.put(`/problems/${id}/status`, { status: "Batched" }),
+        ),
       );
-      
+
       alert(`Successfully batched ${selectedProblems.length} problem(s)!`);
       setSelectedProblems([]);
       setBatchName("");
       setShowBatchModal(false);
       await fetchProblems(); // Refresh data
-      
     } catch (error) {
       console.error(error);
-      alert('Failed to batch problems');
+      alert("Failed to batch problems");
     } finally {
       setRefreshing(false);
     }
   };
 
   const handleDeleteProblem = async (id) => {
-    if (window.confirm('Are you sure you want to delete this problem?')) {
+    if (window.confirm("Are you sure you want to delete this problem?")) {
       try {
         setRefreshing(true);
         await api.delete(`/problems/${id}`);
-        setProblems(prev => prev.filter(p => p._id !== id));
-        setSelectedProblems(prev => prev.filter(pid => pid !== id));
-        alert('Problem deleted successfully');
+        setProblems((prev) => prev.filter((p) => p._id !== id));
+        setSelectedProblems((prev) => prev.filter((pid) => pid !== id));
+        alert("Problem deleted successfully");
       } catch (error) {
         console.error(error);
-        alert('Failed to delete problem');
+        alert("Failed to delete problem");
       } finally {
         setRefreshing(false);
       }
@@ -155,23 +192,23 @@ const DepartmentHeadDashboard = () => {
   };
 
   const handleExportProblems = () => {
-    const dataToExport = filteredProblems.map(problem => ({
+    const dataToExport = filteredProblems.map((problem) => ({
       Title: problem.title,
       Description: problem.description,
       Status: problem.status,
       Priority: problem.priority,
       Location: problem.location,
       Reporter: problem.reporter,
-      'Reported Date': formatDate(problem.createdAt),
-      Department: department
+      "Reported Date": formatDate(problem.createdAt),
+      Department: department,
     }));
-    
+
     const csv = convertToCSV(dataToExport);
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `${department}_problems_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${department}_problems_${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -179,55 +216,95 @@ const DepartmentHeadDashboard = () => {
   };
 
   const convertToCSV = (data) => {
-    if (data.length === 0) return '';
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row => 
-      Object.values(row).map(value => 
-        `"${String(value).replace(/"/g, '""')}"`
-      ).join(',')
+    if (data.length === 0) return "";
+    const headers = Object.keys(data[0]).join(",");
+    const rows = data.map((row) =>
+      Object.values(row)
+        .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+        .join(","),
     );
-    return [headers, ...rows].join('\n');
+    return [headers, ...rows].join("\n");
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Pending': 
-        return 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-800 border border-orange-200';
-      case 'In Progress': 
-        return 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-800 border border-blue-200';
-      case 'Resolved': 
-        return 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border border-green-200';
-      case 'Batched':
-        return 'bg-gradient-to-r from-purple-50 to-violet-50 text-purple-800 border border-purple-200';
-      default: 
-        return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-800 border border-gray-200';
+      case "Pending":
+        return "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-800 border border-orange-200";
+      case "In Progress":
+        return "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-800 border border-blue-200";
+      case "Resolved":
+        return "bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border border-green-200";
+      case "Batched":
+        return "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-800 border border-purple-200";
+      default:
+        return "bg-gradient-to-r from-gray-50 to-gray-100 text-gray-800 border border-gray-200";
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Pending':
+      case "Pending":
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         );
-      case 'In Progress':
+      case "In Progress":
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
         );
-      case 'Resolved':
+      case "Resolved":
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         );
-      case 'Batched':
+      case "Batched":
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
           </svg>
         );
       default:
@@ -237,54 +314,80 @@ const DepartmentHeadDashboard = () => {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border border-gray-200';
+      case "high":
+        return "bg-red-100 text-red-800 border border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-800 border border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border border-gray-200";
     }
   };
 
   const getPriorityStats = () => {
-    const high = problems.filter(p => p.priority === 'high').length;
-    const medium = problems.filter(p => p.priority === 'medium').length;
-    const low = problems.filter(p => p.priority === 'low').length;
+    const high = problems.filter((p) => p.priority === "high").length;
+    const medium = problems.filter((p) => p.priority === "medium").length;
+    const low = problems.filter((p) => p.priority === "low").length;
     return { high, medium, low };
   };
 
-  const filteredProblems = problems.filter(problem => {
+  const filteredProblems = problems.filter((problem) => {
     // Apply status filter
-    if (filter !== 'all' && problem.status !== filter) return false;
-    
+    if (filter !== "all" && problem.status !== filter) return false;
+
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
         problem.title.toLowerCase().includes(searchLower) ||
         problem.description.toLowerCase().includes(searchLower) ||
-        (problem.location && problem.location.toLowerCase().includes(searchLower)) ||
-        (problem.reporter && problem.reporter.toLowerCase().includes(searchLower))
+        (problem.location &&
+          problem.location.toLowerCase().includes(searchLower)) ||
+        (problem.reporter &&
+          problem.reporter.toLowerCase().includes(searchLower))
       );
     }
-    
+
     return true;
   });
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   // Enhanced status options with icons
   const statusOptions = [
-    { value: 'Pending', label: 'Pending', color: 'text-orange-600', icon: '🕒' },
-    { value: 'In Progress', label: 'In Progress', color: 'text-blue-600', icon: '⚡' },
-    { value: 'Batched', label: 'Batched', color: 'text-purple-600', icon: '📦' },
-    { value: 'Resolved', label: 'Resolved', color: 'text-green-600', icon: '✅' }
+    {
+      value: "Pending",
+      label: "Pending",
+      color: "text-orange-600",
+      icon: "🕒",
+    },
+    {
+      value: "In Progress",
+      label: "In Progress",
+      color: "text-blue-600",
+      icon: "⚡",
+    },
+    {
+      value: "Batched",
+      label: "Batched",
+      color: "text-purple-600",
+      icon: "📦",
+    },
+    {
+      value: "Resolved",
+      label: "Resolved",
+      color: "text-green-600",
+      icon: "✅",
+    },
   ];
 
   return (
@@ -295,12 +398,24 @@ const DepartmentHeadDashboard = () => {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Problems</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">
+                Total Problems
+              </p>
               <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-6 h-6 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </div>
           </div>
@@ -314,16 +429,30 @@ const DepartmentHeadDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Pending</p>
-              <p className="text-3xl font-bold text-orange-600">{stats.pending}</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {stats.pending}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-6 h-6 text-orange-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-orange-100">
-            <p className="text-xs text-orange-600 font-medium">Awaiting action</p>
+            <p className="text-xs text-orange-600 font-medium">
+              Awaiting action
+            </p>
           </div>
         </div>
 
@@ -331,17 +460,33 @@ const DepartmentHeadDashboard = () => {
         <div className="bg-white rounded-2xl shadow-lg border-l-4 border-blue-500 p-6 hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">In Progress</p>
-              <p className="text-3xl font-bold text-blue-600">{stats.inProgress}</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">
+                In Progress
+              </p>
+              <p className="text-3xl font-bold text-blue-600">
+                {stats.inProgress}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg
+                className="w-6 h-6 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-blue-100">
-            <p className="text-xs text-blue-600 font-medium">Active investigations</p>
+            <p className="text-xs text-blue-600 font-medium">
+              Active investigations
+            </p>
           </div>
         </div>
 
@@ -350,16 +495,30 @@ const DepartmentHeadDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Batched</p>
-              <p className="text-3xl font-bold text-purple-600">{stats.batched}</p>
+              <p className="text-3xl font-bold text-purple-600">
+                {stats.batched}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-violet-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <svg
+                className="w-6 h-6 text-purple-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
               </svg>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-purple-100">
-            <p className="text-xs text-purple-600 font-medium">Grouped for processing</p>
+            <p className="text-xs text-purple-600 font-medium">
+              Grouped for processing
+            </p>
           </div>
         </div>
       </div>
@@ -369,40 +528,82 @@ const DepartmentHeadDashboard = () => {
         <div className="bg-white rounded-2xl shadow-lg border-l-4 border-red-500 p-6 hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">High Priority</p>
-              <p className="text-3xl font-bold text-red-600">{getPriorityStats().high}</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">
+                High Priority
+              </p>
+              <p className="text-3xl font-bold text-red-600">
+                {getPriorityStats().high}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-pink-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.768 0L4.282 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <svg
+                className="w-6 h-6 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.768 0L4.282 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-2xl shadow-lg border-l-4 border-yellow-500 p-6 hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Medium Priority</p>
-              <p className="text-3xl font-bold text-yellow-600">{getPriorityStats().medium}</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">
+                Medium Priority
+              </p>
+              <p className="text-3xl font-bold text-yellow-600">
+                {getPriorityStats().medium}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-6 h-6 text-yellow-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-2xl shadow-lg border-l-4 border-green-500 p-6 hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Low Priority</p>
-              <p className="text-3xl font-bold text-green-600">{getPriorityStats().low}</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">
+                Low Priority
+              </p>
+              <p className="text-3xl font-bold text-green-600">
+                {getPriorityStats().low}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-6 h-6 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
           </div>
@@ -422,17 +623,22 @@ const DepartmentHeadDashboard = () => {
                 placeholder="Search problems by title, description, location, or reporter..."
                 className="w-full px-4 py-3 pl-12 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <svg 
-                className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="absolute left-4 top-3.5 w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
             </div>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex gap-3">
             <button
@@ -440,33 +646,53 @@ const DepartmentHeadDashboard = () => {
               disabled={selectedProblems.length === 0}
               className={`px-5 py-3 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 ${
                 selectedProblems.length > 0
-                  ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-md hover:shadow-lg'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  ? "bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-md hover:shadow-lg"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
               </svg>
               Batch ({selectedProblems.length})
             </button>
-            
+
             <button
               onClick={handleExportProblems}
               disabled={filteredProblems.length === 0}
               className={`px-5 py-3 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 ${
                 filteredProblems.length > 0
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
               Export CSV
             </button>
           </div>
         </div>
-        
+
         {/* Selection Info */}
         {selectedProblems.length > 0 && (
           <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
@@ -479,7 +705,9 @@ const DepartmentHeadDashboard = () => {
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  {selectedProblems.length === filteredProblems.length ? 'Deselect All' : 'Select All'}
+                  {selectedProblems.length === filteredProblems.length
+                    ? "Deselect All"
+                    : "Select All"}
                 </button>
               </div>
               <button
@@ -497,86 +725,109 @@ const DepartmentHeadDashboard = () => {
       <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Problem Management</h2>
-            <p className="text-gray-600 text-sm">Filter and manage department issues</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">
+              Problem Management
+            </h2>
+            <p className="text-gray-600 text-sm">
+              Filter and manage department issues
+            </p>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
               className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} 
-                viewBox="0 0 20 20" 
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-5 w-5 ${refreshing ? "animate-spin" : ""}`}
+                viewBox="0 0 20 20"
                 fill="currentColor"
               >
-                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                  clipRule="evenodd"
+                />
               </svg>
-              {refreshing ? 'Refreshing...' : 'Refresh Data'}
+              {refreshing ? "Refreshing..." : "Refresh Data"}
             </button>
           </div>
         </div>
-        
+
         {/* Filter Tabs */}
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Filter by Status:</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+            Filter by Status:
+          </h3>
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => handleFilterChange('all')}
-              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${filter === 'all' 
-                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'}`}
+              onClick={() => handleFilterChange("all")}
+              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${
+                filter === "all"
+                  ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
+              }`}
             >
               All Problems
             </button>
-            
+
             <button
-              onClick={() => handleFilterChange('Pending')}
-              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${filter === 'Pending' 
-                ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'}`}
+              onClick={() => handleFilterChange("Pending")}
+              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${
+                filter === "Pending"
+                  ? "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
+              }`}
             >
               Pending
             </button>
-            
+
             <button
-              onClick={() => handleFilterChange('In Progress')}
-              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${filter === 'In Progress' 
-                ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'}`}
+              onClick={() => handleFilterChange("In Progress")}
+              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${
+                filter === "In Progress"
+                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
+              }`}
             >
               In Progress
             </button>
-            
+
             <button
-              onClick={() => handleFilterChange('Batched')}
-              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${filter === 'Batched' 
-                ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'}`}
+              onClick={() => handleFilterChange("Batched")}
+              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${
+                filter === "Batched"
+                  ? "bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
+              }`}
             >
               Batched
             </button>
 
             <button
-              onClick={() => handleFilterChange('Resolved')}
-              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${filter === 'Resolved' 
-                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'}`}
+              onClick={() => handleFilterChange("Resolved")}
+              className={`px-5 py-3 rounded-xl font-medium transition-all duration-200 ${
+                filter === "Resolved"
+                  ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
+              }`}
             >
               Resolved
             </button>
           </div>
         </div>
-        
+
         {/* Active Filter Display */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-800">
-                Active Filter: <span className="font-bold capitalize">{filter === 'all' ? 'All Problems' : filter}</span>
+                Active Filter:{" "}
+                <span className="font-bold capitalize">
+                  {filter === "all" ? "All Problems" : filter}
+                </span>
               </p>
               <p className="text-xs text-blue-600 mt-1">
                 Showing problems based on selected status filter
@@ -584,7 +835,11 @@ const DepartmentHeadDashboard = () => {
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-blue-800">
-                Displaying <span className="font-bold text-xl">{filteredProblems.length}</span> of <span className="font-bold">{problems.length}</span> problems
+                Displaying{" "}
+                <span className="font-bold text-xl">
+                  {filteredProblems.length}
+                </span>{" "}
+                of <span className="font-bold">{problems.length}</span> problems
               </p>
             </div>
           </div>
@@ -593,15 +848,23 @@ const DepartmentHeadDashboard = () => {
 
       {/* Quick Status Update Section */}
       <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Status Update</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-4">
+          Quick Status Update
+        </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {statusOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => {
                 if (selectedProblems.length > 0) {
-                  if (window.confirm(`Update ${selectedProblems.length} problem(s) to ${option.label}?`)) {
-                    selectedProblems.forEach(id => updateStatus(id, option.value));
+                  if (
+                    window.confirm(
+                      `Update ${selectedProblems.length} problem(s) to ${option.label}?`,
+                    )
+                  ) {
+                    selectedProblems.forEach((id) =>
+                      updateStatus(id, option.value),
+                    );
                   }
                 }
               }}
@@ -609,7 +872,7 @@ const DepartmentHeadDashboard = () => {
               className={`p-4 rounded-xl border-2 transition-all duration-200 flex flex-col items-center justify-center ${
                 selectedProblems.length > 0
                   ? `hover:scale-105 cursor-pointer ${getStatusColor(option.value)}`
-                  : 'opacity-50 cursor-not-allowed bg-gray-100'
+                  : "opacity-50 cursor-not-allowed bg-gray-100"
               }`}
             >
               <span className="text-2xl mb-2">{option.icon}</span>
@@ -626,36 +889,69 @@ const DepartmentHeadDashboard = () => {
           <div className="relative">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mb-4"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <svg
+                className="h-8 w-8 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
               </svg>
             </div>
           </div>
           <p className="text-gray-600 font-medium">Loading problems...</p>
-          <p className="text-gray-500 text-sm mt-1">Fetching data for {department} department</p>
+          <p className="text-gray-500 text-sm mt-1">
+            Fetching data for {department} department
+          </p>
         </div>
       ) : filteredProblems.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-gray-50 to-gray-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="w-10 h-10 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-3">No Problems Found</h3>
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">
+            No Problems Found
+          </h3>
           <p className="text-gray-600 max-w-md mx-auto mb-8">
-            {filter === 'all' 
-              ? `There are currently no problems reported for ${department} department.` 
-              : searchTerm 
+            {filter === "all"
+              ? `There are currently no problems reported for ${department} department.`
+              : searchTerm
                 ? `No problems found matching "${searchTerm}" with status "${filter}" in ${department} department.`
-                : `No problems found with status "${filter}" in ${department} department.`
-            }
+                : `No problems found with status "${filter}" in ${department} department.`}
           </p>
           <button
             onClick={handleRefresh}
             className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-medium inline-flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-200"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
             Refresh Data
           </button>
@@ -663,7 +959,10 @@ const DepartmentHeadDashboard = () => {
       ) : (
         <div className="space-y-4">
           {filteredProblems.map((problem) => (
-            <div key={problem._id} className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden group">
+            <div
+              key={problem._id}
+              className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden group"
+            >
               <div className="p-6">
                 <div className="flex items-start gap-4 mb-4">
                   <input
@@ -680,7 +979,9 @@ const DepartmentHeadDashboard = () => {
                             {problem.title}
                           </h3>
                           {problem.priority && (
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${getPriorityColor(problem.priority)}`}>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-bold ${getPriorityColor(problem.priority)}`}
+                            >
                               {problem.priority.toUpperCase()}
                             </span>
                           )}
@@ -694,8 +995,18 @@ const DepartmentHeadDashboard = () => {
                         className="ml-2 text-gray-400 hover:text-red-600 transition-colors p-2"
                         title="Delete Problem"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -713,8 +1024,12 @@ const DepartmentHeadDashboard = () => {
                           {getStatusIcon(problem.status)}
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-gray-500">Status</p>
-                          <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${getStatusColor(problem.status)}`}>
+                          <p className="text-xs font-medium text-gray-500">
+                            Status
+                          </p>
+                          <span
+                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${getStatusColor(problem.status)}`}
+                          >
                             {problem.status}
                           </span>
                         </div>
@@ -722,24 +1037,52 @@ const DepartmentHeadDashboard = () => {
 
                       {/* Reported Date */}
                       <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <svg
+                          className="w-4 h-4 text-gray-400 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
                         </svg>
                         <div>
-                          <p className="text-xs font-medium text-gray-500">Reported</p>
-                          <p className="text-sm font-medium text-gray-900">{formatDate(problem.createdAt)}</p>
+                          <p className="text-xs font-medium text-gray-500">
+                            Reported
+                          </p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {formatDate(problem.createdAt)}
+                          </p>
                         </div>
                       </div>
 
                       {/* Reporter */}
                       {problem.reporter && (
                         <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          <svg
+                            className="w-4 h-4 text-gray-400 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            />
                           </svg>
                           <div>
-                            <p className="text-xs font-medium text-gray-500">Reported By</p>
-                            <p className="text-sm font-medium text-gray-900">{problem.reporter}</p>
+                            <p className="text-xs font-medium text-gray-500">
+                              Reported By
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {problem.reporter}
+                            </p>
                           </div>
                         </div>
                       )}
@@ -747,13 +1090,32 @@ const DepartmentHeadDashboard = () => {
                       {/* Location */}
                       {problem.location && (
                         <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <svg
+                            className="w-4 h-4 text-gray-400 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
                           </svg>
                           <div>
-                            <p className="text-xs font-medium text-gray-500">Location</p>
-                            <p className="text-sm font-medium text-gray-900">{problem.location}</p>
+                            <p className="text-xs font-medium text-gray-500">
+                              Location
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {problem.location}
+                            </p>
                           </div>
                         </div>
                       )}
@@ -770,25 +1132,43 @@ const DepartmentHeadDashboard = () => {
                         {statusOptions.map((option) => (
                           <button
                             key={option.value}
-                            onClick={() => updateStatus(problem._id, option.value)}
+                            onClick={() =>
+                              updateStatus(problem._id, option.value)
+                            }
                             disabled={refreshing}
                             className={`w-full px-4 py-2.5 rounded-lg flex items-center justify-between transition-all duration-200 ${
                               problem.status === option.value
-                                ? 'bg-white shadow-md border border-gray-200'
-                                : 'hover:bg-white hover:shadow-sm'
+                                ? "bg-white shadow-md border border-gray-200"
+                                : "hover:bg-white hover:shadow-sm"
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <span className={`text-lg ${option.color}`}>{option.icon}</span>
-                              <span className={`text-sm font-medium ${
-                                problem.status === option.value ? 'text-gray-900' : 'text-gray-600'
-                              }`}>
+                              <span className={`text-lg ${option.color}`}>
+                                {option.icon}
+                              </span>
+                              <span
+                                className={`text-sm font-medium ${
+                                  problem.status === option.value
+                                    ? "text-gray-900"
+                                    : "text-gray-600"
+                                }`}
+                              >
                                 {option.label}
                               </span>
                             </div>
                             {problem.status === option.value && (
-                              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              <svg
+                                className="w-5 h-5 text-green-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
                               </svg>
                             )}
                           </button>
@@ -813,12 +1193,22 @@ const DepartmentHeadDashboard = () => {
                 onClick={() => setShowBatchModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
-            
+
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Batch Name
@@ -831,14 +1221,15 @@ const DepartmentHeadDashboard = () => {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
-            
+
             <div className="mb-6 p-4 bg-purple-50 rounded-xl">
               <p className="text-sm text-purple-800">
-                <span className="font-bold">{selectedProblems.length}</span> problem(s) will be grouped into a batch.
-                This helps in tracking related issues together.
+                <span className="font-bold">{selectedProblems.length}</span>{" "}
+                problem(s) will be grouped into a batch. This helps in tracking
+                related issues together.
               </p>
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowBatchModal(false)}
@@ -851,7 +1242,7 @@ const DepartmentHeadDashboard = () => {
                 disabled={refreshing}
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50"
               >
-                {refreshing ? 'Creating Batch...' : 'Create Batch'}
+                {refreshing ? "Creating Batch..." : "Create Batch"}
               </button>
             </div>
           </div>
